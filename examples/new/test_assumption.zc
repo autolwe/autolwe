@@ -1,0 +1,56 @@
+(* A crazy assumption to test *)
+
+adversary A1_ddh : G -> G.
+adversary A2_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ w <-$ Fq; x,y   <-$ Fq; g1 <- A1_ddh(g^w); b <- A2_ddh(g1^x,g1^y,g1^(x*y)); ]
+  [ w <-$ Fq; x,y,z <-$ Fq; g1 <- A1_ddh(g^w); b <- A2_ddh(g1^x,g1^y,g1^z);     ].
+
+adversary A1_log : G -> G.
+adversary A2_log : G -> Fq.
+
+
+assumption comp_log succ
+  [ w <-$ Fq; g1 <- A1_log(g^w); x <-$ Fq; x' <- A2_log(g1^x); ] : (x = x').
+  
+
+operator H : G -> BS_k.
+
+adversary A1 : G -> (BS_k * BS_k).
+
+adversary A2 : (G * BS_k) -> Bool.
+
+bound_adv
+  [ a <-$ Fq;
+    let g1 = g^a;
+    sk <-$ Fq;
+    let pk = g1 ^ sk;
+    (m0,m1) <- A1(pk);
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    y <-$ Fq;
+    let he = H(pk ^ y);
+    let c  = (g1 ^ y, he ++ mb); 
+    b' <- A2(c); 
+  ] : (b = b') .
+
+norm.
+move 5 -2.
+
+(* Build the adversary A2_ddh *)
+abstract 4 arg (g^(a*sk), g^(a*y), g^(a*sk*y)).
+abstract  8 d (b = b').
+
+(* Build the adversary A1_ddh *)
+abstract* 2 ga (g^a). 
+abstract* 3 g1 (ga). 
+
+(* Swap sampling on top *)
+move [4 5] -2.
+
+print_goals : norm1.
+
+assumption_decisional ddh -> [4 5] [6 10] v.  
+
+print_goals : norm2.

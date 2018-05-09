@@ -1,0 +1,252 @@
+(* ----------------------------------------------------------------- *)
+(* Define assumptions                                                *)
+(* ----------------------------------------------------------------- *)
+
+(* ----------------------------------------------------------------- *)
+(* Ddh assumption *)
+adversary A_ddh : (G * G * G * G) -> Bool.
+
+assumption ddh
+  [ gen1, gen2 <-$ G; y <-$ Fq;    b <- A_ddh(gen1,gen2,gen1^y,gen2^y); ]
+  [ gen1, gen2 <-$ G; y, z <-$ Fq; b <- A_ddh(gen1,gen2,gen1^y,gen2^z); ].
+
+(* ----------------------------------------------------------------- *)
+(* Hash function (secure wrt. TCR) *)
+
+(* The first component is the index of the hash function, i.e.,
+   "sample i and use H(i,-)" corresponds to "sample random H in HH". *)
+operator H : (BS_i * G * G) -> Fq.
+
+adversary A_tcr : (BS_i * G * G) ->  (G * G).
+
+assumption tcr succ
+  [ i <-$ BS_i; a, b <-$ Fq; (gu,gv) <- A_tcr(i,g^a,g^b); ]
+  : (H(i,gu,gv) = H(i,g^a,g^b)) /\ ((gu,gv) <> (g^a,g^b)).
+
+(* It seems like the following definition is actually required to
+   make the original proof go through, i.e., the adversary knows the
+   discrete logarithms of the chosen inputs.
+
+adversary A_tcr_dlog : (BS_i * Fq * Fq) ->  (G * G).
+
+assumption tcr_dlog succ
+  [ i <-$ BS_i; a, b <-$ Fq; (gu,gv) <- A_tcr_dlog(i,a,b); ]
+  : (H(i,gu,gv) = H(i,g^a,g^b)) /\ ((gu,gv) <> (g^a,g^b)).
+ *)
+
+(* ----------------------------------------------------------------- *)
+(* Key derivation function *)
+
+operator Kdf : G -> (BS_km * BS_ks).
+
+adversary A_kdf : (BS_km * BS_ks) -> Bool.
+
+assumption kdf
+  [ x <-$ Fq;                   res <- A_kdf(Kdf(g^x)); ]
+  [ km <-$ BS_km; ks <-$ BS_ks; res <- A_kdf(km,ks); ].
+
+(* ----------------------------------------------------------------- *)
+(* Symmetric encryption (secure wrt. CPA1) *)
+
+operator Enc : (BS_ks * BS_msg) -> BS_enc.
+operator Dec : (BS_ks * BS_enc) -> BS_msg.
+
+adversary A1_cpa1 : () -> (BS_msg * BS_msg).
+adversary A2_cpa1 : BS_enc -> Bool.
+
+assumption cpa1 adv
+  [ ks      <-$ BS_ks;
+    b       <-$ Bool;
+    (m0,m1) <-  A1_cpa1();
+    b'      <-  A2_cpa1(Enc(ks,b?m0:m1));
+  ] : b = b'.
+
+(* ----------------------------------------------------------------- *)
+(* MAC (secure wrt. CMA1) *)
+
+operator Mac : (BS_km * BS_enc) -> BS_tag.
+
+adversary A1_cma1 : () -> BS_enc.
+adversary A2_cma1 : BS_tag -> (BS_enc * BS_tag).
+
+assumption cma1 succ
+  [ km    <-$ BS_km;
+    ec    <-  A1_cma1();
+    (e,t) <-  A2_cma1(Mac(km,ec));
+  ] : (Mac(km,e) = t) /\ (e <> ec).
+
+adversary A2_cma0 : () -> (BS_enc * BS_tag).
+
+assumption cma0 succ
+  [ km    <-$ BS_km;
+    (e,t) <-  A2_cma0();
+  ] : (Mac(km,e) = t).
+
+(* ----------------------------------------------------------------- *)
+(* Define IND-CCA security experiment                                *)
+(* ----------------------------------------------------------------- *)
+
+adversary A1 : (BS_i * G * G * G * G) -> (BS_msg * BS_msg).
+adversary A2 : (G * G * BS_enc * BS_tag) -> Bool.
+
+oracle Dec1 : (G * G * BS_enc * BS_tag) -> BS_msg.
+oracle Dec2 : (G * G * BS_enc * BS_tag) -> BS_msg.
+
+bound_adv
+  [
+    (* Sample a hash function (its index) and two generators of G *)
+    i <-$ BS_i;
+    gen1, gen2 <-$ G;
+
+    (* secret key is x1,x2,y1,y2,z1 *)
+    x1, x2, y1, y2 <-$ Fq;
+    let c = gen1^x1*gen2^x2;
+    let d = gen1^y1*gen2^y2;
+
+    (* give public key to adversary *)
+    (m0,m1) <- A1(i,gen1,gen2,c,d) with
+      Dec1(u1,u2,e,t) = {
+        let alpha = H(i,u1,u2);
+        let v = u1^(x1 + y1*alpha)*u2^(x2 +y2*alpha);
+        let k = Kdf(v);
+        let km = k#0;
+        let ks = k#1;
+        guard (Mac(km,e) = t);
+        return Dec(ks,e)
+      };
+
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+
+    (* ciphertext with randomness r *)
+    r1 <-$ Fq;
+    let cu1 = gen1^r1;
+    let cu2 = gen2^r1;
+    let ca = H(i,cu1,cu2);
+    let cv = c^r1*d^(r1*ca);
+    let ck = Kdf(cv);
+    let ce = Enc(ck#1,mb);
+    let ct = Mac(ck#0,ce);
+    b' <- A2(cu1,cu2,ce,ct) with
+      Dec2(u1,u2,e,t) = {
+        guard (not ((u1,u2,e,t) = (cu1,cu2,ce,ct)));
+        let alpha = H(i,u1,u2);
+        let v = u1^(x1 + y1*alpha)*u2^(x2 +y2*alpha);
+        let k = Kdf(v);
+        let km = k#0;
+        let ks = k#1;
+        guard (Mac(km,e) = t);
+        return Dec(ks,e)
+      };
+  ] : b = b'.
+
+  (* apply DDH to g1,g2,r1 *)
+  unfold; move gen1 1; move gen2 2; move r1 3.
+  assumption_decisional! ddh -> r2; //; //=.
+
+  rnd_exp (gen1 e1) (gen2 w). //.
+  except e1 [0].
+  rnd! w _ (w -> w/e1); //.
+
+  rnd! x1 _ _ e1; //; ensure (g^(e1*x1)) in 10.
+  rnd! y1 _ _ e1; //; ensure (g^(e1*x1)) in 10.
+
+  (* add test to first oracle *)
+  guard (10,1,2) (u1^w = u2).
+    guess CC tu1 tu2 te tt.
+    move (10,1,1) +1.
+    simp. unfold. norm_solve x2.
+    rnd! x2 _ _; //; ensure (Kdf(g^x2)) in _.
+    (* apply decisional Kdf assumption *)
+    move x2 1. assumption_decisional! kdf -> km ks; //.
+    (* apply CMA0 assumption *)
+    (* assumption_computational! cma0. *)
+    abstract 2 arg ().
+    abstract 14 res2 tt.
+    abstract res2 res1 te.
+    remove_ev 1.
+    assumption_computational cma0 [2].
+  move (10,1,1) +1. simp. //.
+  (* add test to second oracle *)
+  guard (12,1,3) (u1^w = u2).
+    move (12,1,3) -2. simp.
+    (* handle b = b' case first *)
+    last. move (12,1,3) -2. simp.
+    (* make Kdf input random (FIXME add exceptions automatically) *)
+    except w [0]. except r2 [r1].
+    rnd! x2 _ _; //; ensure (Kdf(g^x2)) in _.
+    (* apply Kdf assumption *)
+    move x2 1. //.
+    assumption_decisional! kdf -> km ks; //.
+    (* apply computational CPA1 assumption *)
+    move ks 1. move b 2. norm_unknown.
+    (* assumption_computational! cpa1. *)
+    abstract 3 arg1 ().
+    abstract 14 res1_1 m0.
+    abstract 15 res1_2 m1.
+    abstract 16 arg2 Enc(ks,b?res1_1:res1_2).
+    abstract 18 res2 b'.
+    assumption_computational cpa1 [3 15] [16 18].
+
+  (* equality on u1,u2, but not on ciphertext and Mac implies Mac forgery *)
+  case_ev (u1,u2) = (g ^ (r1*e1),g ^ (e1*r2*w)).
+    guess C1 tu1 tu2 te tt.
+    (* make Kdf input random *)
+    simp; //.
+    (* Make Kdf input random (FIXME add exceptions automatically) *)
+    except w [0]. except r2 [r1].
+    rnd! x2 _ _; //; ensure (Kdf(g^x2)) in _.
+    case_ev (te = Enc(Kdf(g^x2)#1,b?m0:m1)).
+      bycrush.
+    (* apply Kdf security *)
+    move x2 1. norm_unknown.
+    assumption_decisional! kdf -> km ks.
+    (* reduce to CMA1 *)
+    unfold. norm_unknown.
+    remove_ev 1 2 3 4.
+    abstract 2 arg1 ().
+    abstract 14 res1 Enc(ks,b?m0:m1).
+    abstract 15 arg2 Mac(km,res1).
+    abstract 18 res1_1 te.
+    abstract 19 res1_2 tt.
+    assumption_computational cma1 [2 14] [15 19].
+  simp; //.
+  (* Reduce hash collision case to TCR *)
+  case_ev (H(i,u1,u2) = H(i,g^(e1*r1),g^(e1*r2*w))).
+    norm. remove_ev 3 4 5. ///=.
+    find (ai gr1 gr2 ->
+           ((H(ai,u1,u2) = H(ai,gr1,gr2)) /\
+            ((u1,u2) <> (gr1,gr2))))
+         (i,g^(r1*e1),g^(r2*e1*w))
+         C1 u1 u2 e t. //.
+    rnd! r1 _ _; //; ensure (g^r1) in _.
+    except w [0].
+    rnd! r2 _ _ e1; //; ensure (g^r2) in _.
+    (* apply TCR *)
+    norm_unknown r1 r2.
+    move i 1. move r1 2. move r2 3.
+    abstract 4 arg (i,g^r1,g^r2).
+    abstract 15 res1 u1.
+    abstract 16 res2 u2.
+    assumption_computational tcr [4 16].
+
+  guess C1 tu1 tu2 te tt.
+  (* finish proof exploiting that hashes are not equal *)
+  norm.
+  (* Make Kdf input random (FIXME add exceptions automatically) *)
+  except w [0]. except r2 [r1].
+  rnd! x2 _ _; //; ensure (Kdf(g^x2)) in _.
+  rnd! y2 _ _; //; ensure (Kdf(g^y2)) in _.
+  (* apply Kdf decisional assumption *)
+  move y2 1. remove_ev 1 2 3 4.
+  abstract _ result _.
+  abstract* 2 arg (Kdf(g^y2)).
+  assumption_decisional kdf -> [arg] km ks; //.
+  (* reduce to CMA0 *)
+  unfold. norm_unknown.
+  abstract 2 arg ().
+  abstract 16 res1 te.
+  abstract 17 res2 tt.
+  assumption_computational cma0 [2].
+qed.
+extract "extraction/kurosawa-desmedt.ec".

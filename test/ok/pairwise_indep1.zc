@@ -1,0 +1,43 @@
+(* extracted from use of pairwise independent hash function in Waters scheme *)
+
+adversary A1 : () -> Fq.
+adversary A2 : Fq -> Bool.
+
+oracle O : Fq -> Fq.
+
+(* For the first adversary call *)
+bound_dist
+  [ j <- A1() with
+        O(i) =
+          [ (* for < *)
+            { return 0 }
+            (* for = *)
+            { t1 <-$ Fq; return t1 }
+            (* for > *)
+            { return 0 } ];
+    t2 <-$ Fq;
+    beta <- A2(t2);
+  ] : beta /\ (O`i<>j)
+  [ a, b <-$ Fq;
+    j <- A1() with
+        O(i) =
+          [ (* for < *)
+            { return 0 }
+            (* for = *)
+            { return a*i + b }
+            (* for > *)
+            { return 0 } ];
+    beta <- A2(a*j + b);
+  ] : beta /\ (O`i<>j).
+  rename t2 a.
+  assert a (O`i<>j). (* add assert to enable rnd rule *)
+    bycrush.
+  rnd a (a -> O`t1 + a*(j - O`i)) _; //.
+  move a -2.
+  rnd (2,1,1,=) (t1 -> t1 + a*i) _; //.
+  move_main (2,1,1) b.
+  assert 4. (* remove assert again *)
+    bycrush.
+  dist_eq.
+qed.
+extract "extraction/pairwise_indep1.zc".

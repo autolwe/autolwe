@@ -1,0 +1,9 @@
+#!/bin/bash
+
+export LD_LIBRARY_PATH=_build/c_src
+export BOLT_CONFIG=etc/log_bolt.config
+if [ $# -lt 1 ]; then
+  ./wsautognp.native examples/ok/*.zc examples/ok/**/*.zc test/**/*.zc -new_dir examples/new
+else
+  ./wsautognp.native $@
+fi

@@ -1,0 +1,59 @@
+# --------------------------------------------------------------------
+true: menhir, use_menhir, menhir_explain, menhir_table
+true: bin_annot, debug
+
+# --------------------------------------------------------------------
+<src/Engine>  : include
+<src/Norm>    : include
+<src/Deduce>  : include
+<src/Extract> : include
+<src/Parser>  : include
+<src/CAS>     : include
+<src/Game>    : include
+<src/Main>    : include
+<src/Util>    : include
+<src/Expr>    : include
+<src/Test>    : include
+<src/Poly>    : include
+<src/Core>    : include
+<src/Derived> : include
+
+# --------------------------------------------------------------------
+<src/**/*>: package(bolt,batteries)
+
+<src/Game/*>    : syntax(camlp4o), package(comparelib.syntax)
+<src/Core/*>    : syntax(camlp4o), package(comparelib.syntax)
+<src/Expr/*>    : syntax(camlp4o), package(comparelib.syntax)
+<src/CAS/*>     : syntax(camlp4o), package(comparelib.syntax)
+<src/Derived/*> : syntax(camlp4o), package(comparelib.syntax)
+<src/Engine/*>  : syntax(camlp4o), package(comparelib.syntax)
+
+<src/Parser/Parser.{ml,mli}> : package(menhirLib)
+
+<src/*/*.byte> or <src/*/*.native> : thread, package(unix)
+
+<src/Main/autognp.native>  : package(ctypes.foreign,num,bolt,batteries,menhirLib)
+<src/Main/autognp.p.native>: package(bolt,menhirLib)
+<src/CAS/Factory.native>   : package(ctypes.foreign,num)
+
+<src/CAS/Factory.ml>: thread, package(unix,ctypes.foreign,num)
+
+# --------------------------------------------------------------------
+<src/Test/Test_*.d.byte> or <src/Test/Test_*.ml>: thread, package(ounit)
+
+# --------------------------------------------------------------------
+<src/Main/wsautognp.*>: \
+    thread, \
+    package(unix),\
+    package(websocket.lwt),\
+    package(ctypes.foreign),\
+    package(num),\
+    package(bolt),\
+    package(lwt),\
+    package(lwt.ppx),\
+    package(uri),\
+    package(cohttp.lwt),\
+    package(ppx_deriving.std),\
+    package(containers),\
+    package(nocrypto.lwt),\
+    package(conduit)

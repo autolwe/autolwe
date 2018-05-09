@@ -1,0 +1,30 @@
+adversary A1 : () -> (Fq * G_t).
+bilinear_map e : G_1 * G_2 -> G_t.
+
+bound_succ
+  [ (* master secret/public key *)
+    al <-$ Fq;
+    be  <-$ Fq;
+    de <-$ Fq;
+    let gg1  = g_1^al;
+    let hh1  = g_1^de;
+    let gg1' = g_2^al;
+    let hh1' = g_2^de;
+    let gg0' = g_2^(al*be);
+    let v = e(g_1,gg0');
+    (i,m) <- A1();
+    (* cipher *)
+    s <-$ Fq;
+    let c1 = m*v^s;
+    let c2 = g_1^s;
+    let c3 = (gg1^i*hh1)^s;
+    (* key for identity i *)
+    r <-$ Fq;
+    let k1 = gg0'*(gg1'^i*hh1')^r;
+    let k2 = g_2^r;
+    (* decryption *)
+    let m' = c1*e(c3,k2)*e(c2,k1)^(-1);
+  ] : not (m = m').
+  bysimp.
+qed.
+extract "extraction/bb1_asym_correct.ec".

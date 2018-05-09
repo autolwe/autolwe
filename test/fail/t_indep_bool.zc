@@ -1,0 +1,7 @@
+bound_succ
+  [ b <-$ Bool;
+  ] : b = false.
+  indep.
+(*
+ERROR: indep: Adv judgment expected
+*)

@@ -1,0 +1,24 @@
+adversary A1 : (G_1 * G_1) -> (G_2 * G_2).
+bilinear_map e : G_1 * G_2 -> G_t.
+
+adversary A_ddh : (G_1 * G_1 * G_1) -> Bool.
+
+assumption ddh ([x,y])
+  [ x, y    <-$ Fq; b <- A_ddh(g_1^x,g_1^y,g_1^(x*y)); ]
+  [ x, y, z <-$ Fq; b <- A_ddh(g_1^x,g_1^y,g_1^z); ].
+
+bound_succ
+  [ a <-$ Fq;
+    c <-$ Fq;
+    let ga = g_1^a;
+    let gc = g_1^c;
+    (gu,gv) <- A1(ga, gc);
+  ] : (e(ga,gu) * e(gc,gv) = g_t^0) /\ not (gv = g_2^0).
+except a [0]. //.
+(* we must introduce a*c to apply ddh, there is no way around it *)
+rnd c (c -> c*a) _; //.
+ctxt_ev 1 (x -> x^(1/a)); //.
+except a [].
+bycrush.
+qed.
+extract "extraction/assm_double_pairing.ec".

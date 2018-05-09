@@ -1,0 +1,51 @@
+(* extracted from use of pairwise independent hash function in Waters scheme *)
+
+adversary A1 : () -> Fq.
+adversary A2 : Fq -> Bool.
+
+oracle O : Fq -> Fq.
+
+(* for the second adversary call *)
+bound_dist
+  [ j <- A1();
+    t1 <-$ Fq;
+    beta <- A2(t1)
+      with
+        O(i) =
+          [ (* for < *)
+            { return 0 }
+            (* for = *)
+            { guard (i <> j);
+              t <-$ Fq;
+              return t }
+            (* for > *)
+            { return 0 } ];
+  ] : beta
+  [ a, b <-$ Fq;
+    j <- A1();
+    beta <- A2(a*j + b)
+      with
+        O(i) =
+          [ (* for < *)
+            { return 0 }
+            (* for = *)
+            { guard (i<>j);
+              return a*i + b }
+            (* for > *)
+            { return 0 } ];
+  ] : beta.
+  
+  move t1 -1.
+  rename t1 b.
+  (* since we want to make A2's input depend on a and b, we have to adapt
+     the oracle first (already taking the rnd rule later used for b into
+     account *)
+  rnd (3,1,2,=) (t -> t*(i - j) + b) _; //.
+  move_main (3,1,2) a.
+  move b a.
+  rnd b (b -> b + a*j) _; //.
+  move b j.
+  move a b.
+  dist_eq.
+qed.
+extract "extraction/pairwise_indep2.ec".

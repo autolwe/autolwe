@@ -1,0 +1,22 @@
+adversary A : () -> Fq.
+
+operator H : Fq -> Fq.
+
+bound_succ
+  [ x1 <-$ Fq;
+    x2 <- A();
+  ] : (x1 * x2 = 0) /\ not (x2 = 0).
+  norm.
+  move x1 x2.
+  ctxt_ev 1 (r -> r / x2). norm.
+  indep.
+qed.
+
+extract "extraction/t_rindep.ec".
+
+bound_succ
+  [ x1 <-$ Fq;
+    x2 <- A();
+  ] : (x1 * x2 = 0) /\ not (x2 = 0).
+  bycrush.
+qed.

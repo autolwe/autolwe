@@ -1,0 +1,35 @@
+adversary A1 : G -> G.
+adversary A2 : G -> G.
+oracle O1_1 : G -> G.
+oracle O1_2 : G -> G.
+oracle O1_3 : G -> G.
+oracle O2 : G -> G.
+
+bound_adv [
+  x1 <-$ G;
+  x3 <-$ G;
+  x2 <- A1(x1) with
+      O1_1(y) = {
+        return y;
+      },
+      O1_2(y) = {
+        z1 <-$ G;
+        z2 <-$ G;
+        let w = y;
+        guard (w = y);
+        guard (y = x3);
+        z3 <-$ G;
+        guard (z1 = z2);
+        return w;
+      },
+      O1_3(y) = {
+        return y;
+      }  
+      ;
+   x4 <- A2(x2) with
+        O2(y) = {return y;};
+  ]: x1 = x2.
+move (3,2,5) -4.
+admit.
+qed.
+extract "extraction/t_swap_orcl1.ec".

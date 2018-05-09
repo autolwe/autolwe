@@ -1,0 +1,12 @@
+adversary A : Fq -> Fq.
+
+bound_succ
+  [ a <-$ Fq;
+    b <-$ Fq;
+    a' <- A(b + a);
+  ] : a + b = a'.
+  bycrush.
+(*
+ERROR: tactic failed
+*)
+qed.

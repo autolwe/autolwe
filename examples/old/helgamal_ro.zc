@@ -1,0 +1,43 @@
+adversary A1 : G -> (BS_k * BS_k).
+adversary A2 : (G * BS_k) -> Bool.
+
+random oracle H : G -> BS_k.
+
+assumption ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ z; ]
+    x y z.
+
+
+prove
+  [ sk <-$ Fq;
+    let pk = g ^ sk;
+    (m0,m1) <- A1(pk);
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    y <-$ Fq;
+    let he = H(pk ^ y);
+    let c  = (g ^ y, he ++ mb);
+    b' <- A2(c);
+  ] : b = b'.  
+
+rbad 7 x.
+rrandom 7 (v -> v ++ mb) (v -> v ++ mb) z1.
+rnorm.
+rswap 3 3. rindep. 
+rnorm.
+rswap 4 -2.
+rlet_abstract 2 gsk (g^sk).
+rlet_abstract 3 gy (g^y).
+rlet_abstract 4 gsky (g^(sk*y)).
+assumption -> ddh u.
+rnorm.
+rswap 3 4.
+(* FIXME: this is not handled yet *)
+rctxt_ev (v -> log(v)).
+rnorm.
+rindep.
+
+extract "extraction/helgamal_ro.ec".

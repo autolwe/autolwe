@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -x
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export LD_LIBRARY_PATH="$DIR/_build/c_src":/usr/local/lib
+export DYLD_LIBRARY_PATH="$DIR/_build/c_src":/usr/local/lib
+
+test -f $DIR/autognp.log && rm $DIR/autognp.log
+$DIR/autognp.native -log_file $DIR/autognp.log $@

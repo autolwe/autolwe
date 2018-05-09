@@ -1,0 +1,12 @@
+adversary A1 : Fq -> Bool .
+
+bound_adv
+  [ 
+    b <-$ Bool;
+    x, y, z <-$ Fq;
+    b' <- A1(b?x + y:x + z);
+  ] : b = b'.
+  //.
+  bycrush.
+qed.
+extract "extraction/t_if_push_inwards.ec".

@@ -1,0 +1,101 @@
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x,y    <-$ Fq; b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x,y, z <-$ Fq; b <- A_ddh(g^x,g^y,g^z);     ].
+
+operator H : (G * G * G) -> Fq.
+
+adversary A_tcr : (G * G * G) -> (G * G * G).
+
+assumption tcr succ
+  [ a, b, c <-$ Fq; (x1,x2,x3) <- A_tcr(g^a,g^b,g^c); ]
+  : not ((x1,x2,x3) = (g^a,g^b,g^c)) /\ (H(x1,x2,x3) = H(g^a,g^b,g^c)).
+
+adversary A1 : (G * G * G * G) -> (G * G).
+adversary A2 : (G * G * G * G) -> Bool.
+oracle Dec1 : (G * G * G * G) -> G.
+oracle Dec2 : (G * G * G * G) -> G.
+
+bound_adv
+  [ (* secret key is x1, x2, y1, y2, z1, z2 *)
+    w, x1, x2, y1, y2, z1, z2 <-$ Fq;
+    let p1 = g^(x1+w*x2);
+    let p2 = g^(y1+w*y2);
+    let p3 = g^(z1+w*z2);
+    let p4 = g^w;
+
+    (m0,m1) <- A1(p1,p2,p3,p4) with
+      Dec1(a,a',c,d) = {
+        guard (d = a^(x1+H(a,a',c)*y1) * a'^(x2+H(a,a',c)*y2));
+        return c * (a^z1 * a' ^z2)^(-1)
+      };
+
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    (* randomness for encryption is u *)
+    u <-$ Fq;
+    let sa  = g^u;
+    let sa' = p4^u;
+    let sc  = mb * p3^u;
+    let sd  = p1^u * p2^(u*H(sa,sa',sc));
+
+    b' <- A2(sa,sa',sc,sd) with
+      Dec2(a,a',c,d) = {
+        guard ((a,a',c,d) <> (sa,sa',sc,sd));
+        guard (d = a^(x1+H(a,a',c)*y1) * a'^(x2+H(a,a',c)*y2));
+        return c * (a^z1 * a'^z2)^(-1)
+      };
+
+  ] : b = b'.
+
+  (* decisional assumption *)
+  unfold. move u 2.
+  assumption_decisional! ddh -> v.
+  norm.
+
+  (* rnd rule for x1, y1, z1 *)
+  except v [u*w].
+  rnd! x1 _ _; //; ensure (g^x1) in 10.
+  rnd! y1 _ _; //; ensure (g^y1) in 10.
+  rnd! z1 _ _; //; ensure (g^z1) in 10.
+  norm.
+
+  (* add test to Dec1 *)
+  guard (10,1,2) (a^w = a').
+    move (10,1,2) -1.
+    guess A3 a a' c d.
+    bycrush.
+
+  (* rnd to x2 and y2 *)
+  move (10,1,2) -1.
+  rewrite_oracle (10,1,1) <-. simp. norm. 
+  rnd! x2 _ _; //; ensure (g^x2) in _.
+  rnd! z2 _ _. //; ensure (g^z2) in _.
+  
+  (* add test to Dec2 *)
+  guard (12,1,3) (a^w = a').
+    last.
+    bycrush.
+
+  (* exclude hash collision *)
+  move (12,1,3) -1.
+  simp. norm.
+  case_ev H(a,a',c) = H(g^u,g^v,g^z2).
+    last.
+    bycrush.
+  simp. norm.
+  case_ev (a,a',c) = (g^u,g^v,g^z2).
+    guess A_guess a a' c d. (* FIXME: why is there no guess automation? *)
+    bycrush.
+  move u w. move z2 w.
+  except v []. move v z2.
+  remove_ev 3 4 5.
+  find (gu gv gz2 ->
+          ((a,a',c) <> (gu,gv,gz2)) /\ (H(a,a',c) = H(gu,gv,gz2)))
+       (g^u,g^v,g^z2)
+       A3 a a' c d.
+  assumption_computational! tcr.
+qed.
+print_proof!.
+extract "extraction/cramer_shoup_guard.ec".

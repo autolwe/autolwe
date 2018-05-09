@@ -1,0 +1,12 @@
+adversary A : () -> Fq.
+
+bound_succ
+  [ s <- A();
+    r <-$ Fq; ]
+  : r*s = 1 /\ s <> 0.
+  rnd! 2 (r -> r / ((s=0)?1:s)) (r -> r * ((s=0)?1:s)).
+  norm.
+  rewrite_ev 2. norm.
+  indep.
+qed.
+extract "extraction/t_rnd_simulate_assert.ec".

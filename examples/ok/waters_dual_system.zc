@@ -1,0 +1,273 @@
+bilinear_map e : G * G -> G_t.
+
+(* DBDH assumption *)
+adversary A_dbdh : (G * G * G * G_t) -> Bool.
+
+assumption dbdh
+  [ c1 <-$ Fq; c2 <-$ Fq; c3 <-$ Fq;
+    b <- A_dbdh(g^c1, g^c2, g^c3, e(g,g)^(c1*c2*c3)); ]
+  [ c1 <-$ Fq; c2 <-$ Fq; c3 <-$ Fq; t <-$ Fq;
+    b <- A_dbdh(g^c1, g^c2,g^c3, e(g,g)^t); ].
+
+(* DLIN assumption *)
+adversary A_dlin : (G * G * G * G * G) -> Bool.
+
+assumption dlin
+  [ b1, b2, c1, c2 <-$ Fq;    b <- A_dlin(g^b1, g^b2, g^c1, g^(b1*c2), g^(b2*(c1+c2))); ]
+  [ b1, b2, c1, c2, t <-$ Fq; b <- A_dlin(g^b1, g^b2, g^c1, g^(b1*c2), g^t); ].
+
+adversary A_dkill : () -> Bool.
+
+assumption [inf] dkill
+  [ k <-$ Fq; b <- A_dkill(); ]
+  [ b <- A_dkill(); ].
+
+adversary A1 : (G*G*G*G*G*G*G*G*G*G*G*G*G_t) -> (Fq * G_t * G_t).
+adversary A2 : (Fq*G_t*G*G*G*G*G*G*G*G*G) -> Bool.
+oracle KeyGen1 : Fq -> (Fq*G*G*G*G*G*G*G*G).
+oracle KeyGen2 : Fq -> (Fq*G*G*G*G*G*G*G*G).
+
+bound_adv
+[ (* setup *)
+  V, V1, V2, W, U, H <-$ G;
+  a1, a2,  b, alpha <-$ Fq;
+  
+  let tau1 = V*V1^a1;
+  let tau2 = V*V2^a2;
+  let P0   = g^b;
+  let P1   = g^a1;
+  let P2   = g^a2;
+  let P3   = g^(b*a1);
+  let P4   = g^(b*a2);
+  let P5   = e(g,g)^(alpha*a1*b);
+  (ci,m0,m1) <- A1(P0,P1,P2,P3,P4,tau1,tau2,tau1^b,tau2^b,W,U,H,P5) with
+    KeyGen1(i) = {
+      r1, r2, z1, z2, tagk <-$ Fq;
+      let r  = r1 + r2;
+      let D1 = g^(alpha*a1)*V^r;
+      let D2 = g^(-alpha)*V1^r*g^z1;
+      let D3 = (g^b)^(-z1);
+      let D4 = V2^r*g^z2;
+      let D5 = (g^b)^-z2;
+      let D6 = g^(r2*b);
+      let D7 = g^r1;
+      let k  = (U^i*W^tagk*H)^r1;
+      return (tagk,D1,D2,D3,D4,D5,D6,D7,k)
+    };
+  
+  beta <-$ Bool;  
+  let m = beta?m0:m1;
+  (* encryption of Enc(PK,i,m) *)
+  s1, s2, t, tagc <-$ Fq;
+  let C0 = m*P5^s2;
+  let C1 = P0^(s1+s2);
+  let C2 = P3^s1;
+  let C3 = P1^s1;
+  let C4 = P4^s2;
+  let C5 = P2^s2;
+  let C6 = tau1^s1*tau2^s2;
+  let C7 = (tau1^b)^s1*(tau2^b)^s2*W^-t;
+  let E1 = (U^ci*W^tagc*H)^t;
+  let E2 = g^t;
+  
+  beta' <- A2(tagc,C0,C1,C2,C3,C4,C5,C6,C7,E1,E2) with
+    KeyGen2(i) = {
+      guard (i <> ci);
+      r1, r2, z1, z2, tagk <-$ Fq;
+      let r  = r1 + r2;
+      let D1 = g^(alpha*a1)*V^r;
+      let D2 = g^(-alpha)*V1^r*g^z1;
+      let D3 = (g^b)^-z1;
+      let D4 = V2^r*g^z2;
+      let D5 = (g^b)^-z2;
+      let D6 = g^(r2*b);
+      let D7 = g^r1;
+      let k  = (U^i*W^tagk*H)^r1;
+      return (tagk,D1,D2,D3,D4,D5,D6,D7,k)
+    };
+] : (forall ii in L_KeyGen1: (ii <> ci)) /\ (beta = beta').
+
+(* ================================================ *)
+(* make ciphertext semi-functional by applying DLIN *)
+
+(* This is the game with semi-functional challenge ciphertext as given in the paper *)
+trans*
+  [ insert beta'
+    [ (* modifications to make ciphertext semi-functional *)
+      x <-$ Fq;
+      let C4' = g^(b*a2*x);
+      let C5' = g^(a2*x);
+      let C6' = V2^(a2*x);
+      let C7' = V2^(b*a2*x); ]
+  , subst E2 (C4 -> C4*C4')
+  , subst E2 (C5 -> C5*C5')
+  , subst E2 (C6 -> C6*C6')
+  , subst E2 (C7 -> C7*C7')
+  ].
+
+  (* sample exponents instead of group elements to maximize  deducibility for reduction *)
+  LR: rnd_exp V V1 V2 W U H; ///=.
+  
+  (* b1, b2, c1, and c2 correspond to variables in DLIN *)
+  LR: rename a1 b1; rename a2 b2; move b1 1; move b2 2.
+  abstract _ res _.
+  LR: assumption_decisional! dkill <- c2; ///=.
+  LR: assumption_decisional! dkill <- c1; ///=.
+  LR: move [c1 c2] 4.
+
+  (* Perform the right opt. samplings to "mix in" c1 and c2. *)
+  LR: rnd s2 (s2 -> s2 + c1 + c2) _; rnd s1 (s1 -> s1 - c2)  _; ///=.
+  assumption_decisional! dlin -> x; //.
+  move x tagc.
+  (* substitute some variable by polynomial to obtain additional terms missing in right game *)
+  R: except b2 [0]; rnd! x _ (x -> b2*(x + c1 + c2)); except b2 []; //.
+  dist_eq.
+
+(* ================================================== *)
+(* make first oracle semi-functional by applying DLIN *)
+
+hybrid (19,1)
+  { r1, r2, z1, z2, tagk, gamma <-$ Fq;
+    let r = r2 + r1;
+    let D1' = g^(a1*alpha) * V^r;
+    let D2' = g^-alpha * V1^r * g^z1;
+    let D3 = (g^b)^-z1;
+    let D4' = V2^r * g^z2;
+    let D5 = (g^b)^-z2;
+    let D6 = g^(b*r2);
+    let D7 = g^r1;
+    let k = (H * U^i * W^tagk)^r1;
+    let D1 = D1' * g^(-a1*a2*gamma);
+    let D2 = D2' * g^(a2*gamma);
+    let D4 = D4' * g^(a1*gamma);
+    return (tagk,D1,D2,D3,D4,D5,D6,D7,k) }.
+
+  (* -------------------------------------------------- *)
+  (* sample exponents instead of group elements to maximize deducibility for reduction *)
+  LR: rnd_exp V V1 V2 W U H; ///=.
+
+  (* -------------------------------------------------- *)
+  (* introduce pairwise independent function A*i + B for tagc and tagk in =-oracle. *)
+  assert beta (KeyGen1`i<>ci).
+    bycrush.
+  dist_sym.
+  assert beta (KeyGen1`i<>ci).
+    bycrush.
+  dist_sym.
+  LR: rename tagc A; rnd A (A -> A*(ci - KeyGen1`i) + KeyGen1`tagk) _; move A 1; ///=.
+  LR: rnd (12,1,5,=) (tagk -> tagk + A*i) _; //; //=; move_main (12,1,5) B; move B 2.
+
+  (* b1, b2, c1, and c2 correspond to variables in DLIN. *)
+  LR: rename b b1; rename v b2.
+  LR: assumption_decisional! dkill <- c2; ///=.
+  LR: assumption_decisional! dkill <- c1; ///=.
+  LR: move b1 1; move b2 2.
+  
+  (* public parameters *)
+  LR: except a1 [0]; except a2 [0]; rnd! b2 (b2 -> -b2*a1*a2) _; //.
+  LR: rnd! v1 (v1 -> v1 + b2*a2) _; //.
+  LR: rnd! v2 (v2 -> v2 + b2*a1) _; //.
+  LR: rnd! w (w -> w + b1) _;       //.
+  LR: rnd! u (u -> u - b1*A) _;     //.
+  LR: rnd! h (h -> h - b1*B) _;     //.
+
+  (* key generation for =-oracle *)
+  LR: rnd (19,1,1,=) (r1 -> r1 + c1) _;    //.
+  LR: rnd (19,1,2,=) (r2 -> r2 + c2) _;    //.
+  LR: rnd (19,1,3,=) (z1 -> z1 - v1*c2) _; //.
+  LR: rnd (19,1,4,=) (z2 -> z2 - v2*c2) _; //.
+  
+  (* challenge ciphertext *)
+  LR: rnd! t (t -> t + a1*a2*x*b2) _; //.
+
+  (* apply assumption *)
+  LR: move b1 1; move b2 2; move c1 3; move c2 4.
+  assumption_decisional! dlin -> tt. //.
+  
+  (* match up variables in both games *)
+  move tt 18. move_main tt (19,1,1) gamma. move (18,1,1,=) +4.
+  rnd (18,1,5,=) (gamma -> gamma + b2*c1 + b2*c2) _; //.
+  dist_eq.
+
+(* ================================================== *)
+(* make second oracle semi-functional by applying DLIN *)
+hybrid (41,1)
+  { guard (i <> ci);
+    r1, r2, z1, z2, tagk, gamma <-$ Fq;
+    let r = r2 + r1;
+    let D1' = g^(a1*alpha) * V^r;
+    let D2' = g^-alpha * V1^r * g^z1;
+    let D3 = (g^b)^-z1;
+    let D4' = V2^r * g^z2;
+    let D5 = (g^b)^-z2;
+    let D6 = g^(b*r2);
+    let D7 = g^r1;
+    let k = (H * U^i * W^tagk)^r1;
+    let D1 = D1' * g^(-a1*a2*gamma);
+    let D2 = D2' * g^(a2*gamma);
+    let D4 = D4' * g^(a1*gamma);
+    return (tagk,D1,D2,D3,D4,D5,D6,D7,k) }.
+
+  (* -------------------------------------------------- *)
+  (* sample exponents instead of group elements to maximize deducibility for reduction *)
+  LR: rnd_exp V V1 V2 W U H; //.
+
+  (* ------------------------------------------------------------------------------ *)
+  (* THIS PART DIFFERS FROM FIRST HYBRID ARGUMENT:
+     introduce pairwise independent function A*i + B for tagc and tagk in =-oracle. *)
+  LR: rename tagc B.
+  LR: rnd (18,1,6,=) (tagk -> tagk*(KeyGen2`i - ci) + B) _. LR: //.
+  LR: move_main (18,1,6) A; move A 1; move B 2.
+  LR: rnd! B (B -> B + A*ci) _; //.
+
+  (* b1, b2, c1, and c2 correspond to variables in DLIN. *)
+  LR: rename b b1; rename v b2.
+  LR: assumption_decisional! dkill <- c2; //.
+  LR: assumption_decisional! dkill <- c1; //.
+  LR: move b1 1; move b2 2.
+
+  (* public parameters *)
+  LR: except a1 [0]; except a2 [0]; rnd! b2 (b2 -> -b2*a1*a2) _; //.
+  LR: rnd! v1 (v1 -> v1 + b2*a2) _; //.
+  LR: rnd! v2 (v2 -> v2 + b2*a1) _; //.
+  LR: rnd! w (w -> w + b1) _;       //.
+  LR: rnd! u (u -> u - b1*A) _;     //.
+  LR: rnd! h (h -> h - b1*B) _;     //.
+  
+  (* key generation for =-oracle *)
+  LR: rnd (21,1,2,=) (r1 -> r1 + c1) _;    //.
+  LR: rnd (21,1,3,=) (r2 -> r2 + c2) _;    //.
+  LR: rnd (21,1,4,=) (z1 -> z1 - v1*c2) _; //.
+  LR: rnd (21,1,5,=) (z2 -> z2 - v2*c2) _; //.
+  
+  (* challenge ciphertext *)
+  LR: rnd! t (t -> t + a1*a2*x*b2) _; //.
+
+  (* apply assumption *)
+  LR: move b1 1; move b2 2; move c1 3; move c2 4.
+  assumption_decisional! dlin -> tt; //.
+
+  (* match up variables in both games *)
+  move tt 21. move_main tt (22,1,1) gamma. move (21,1,1,=) +5.
+  rnd (21,1,6,=) (gamma -> gamma + b2*c1 + b2*c2) _; //.
+  dist_eq.
+
+(* ================================================== *)
+(* make ciphertext one-time-pad by applying DBDH *)
+
+(* c1, c2, c3 correspond to variables in BDDH *)
+rename alpha c1. rename a2 c2. rename s2 c3.
+
+(* sample exponents *)
+rnd_exp V V1 V2 W U H; //.
+
+except c2 [0]. rnd c1 (c1 -> c1 * c2) _. except c2 []. unfold u__.
+rnd (11,1,6) (gamma -> gamma + c1) _. norm.
+rnd (18,1,7) (gamma -> gamma + c1) _. norm.
+rename x x'. rnd x' (x' -> x' - c3) _. norm.
+move c1 1. move c2 2. move c3 3.
+assumption_decisional! dbdh -> tt. norm.
+except a1 [0]. except b [0]. rnd! tt _ (tt -> log(beta?m0:m1) + a1*b*tt); //.
+indep!.
+qed.
+(* extract "extraction/waters_dual_system.ec".*)

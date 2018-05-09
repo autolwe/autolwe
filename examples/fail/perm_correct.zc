@@ -1,0 +1,11 @@
+permutation f : BS_k.
+
+adversary A : KeyPair_f -> BS_k.
+  
+bound_succ [
+  kp <-$ KeyPair_f;
+  let pk = getPK_f(kp);
+  let sk = getSK_f(kp);
+  x <- A(kp);
+] : not (   (f_inv(sk,f(pk,x)) = x)
+         /\ (f(pk,f_inv(sk,x)) = x)).

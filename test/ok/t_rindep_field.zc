@@ -1,0 +1,12 @@
+adversary A : () -> (Fq * Fq * Fq * Fq * Fq * Fq * Fq * G * G).
+
+bound_succ
+  [
+    (x1,la,la',w,y1,y2,ha,ga',gd) <- A();
+    x2 <-$ Fq;
+  ] : (gd = (g ^ (x1*la + x2*la' + -(w*x2*la) + -(w*y2*la*ha) + y2*la'*ha + y1*la*ha)))
+  /\ not (w*la = la').
+  norm.
+  indep!.
+qed.
+extract "extraction/t_rindep_field.ec".

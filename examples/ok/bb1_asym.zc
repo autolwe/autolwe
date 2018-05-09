@@ -1,0 +1,40 @@
+bilinear_map e : G_1 * G_2 -> G_t.
+
+adversary A1 : () -> Fq.
+adversary A2 : (G_1 * G_2 * G_2) -> (G_t * G_t).
+adversary A3 : (G_t * G_1 * G_2) -> Bool.
+
+oracle Kg1 : Fq -> (G_1 * G_1).
+oracle Kg2 : Fq -> (G_1 * G_1).
+
+adversary A_dbdh : (G_1 * G_1 * G_2 * G_1 * G_2 * G_t) -> Bool.
+
+assumption dbdh
+  [ c1, c2, c3 <-$ Fq;    b <- A_dbdh(g_1^c1, g_1^c2, g_2^c2, g_1^c3, g_2^c3, e(g_1,g_2)^(c1*c2*c3)); ]
+  [ c1, c2, c3, t <-$ Fq; b <- A_dbdh(g_1^c1, g_1^c2, g_2^c2, g_1^c3, g_2^c3, e(g_1,g_2)^t); ].
+
+bound_adv
+  [ i' <- A1();
+    c, d, h <-$ Fq;
+    let pk1 = g_1^c;
+    let pk2 = g_2^d;
+    let pk3 = g_2^h;
+    (m0,m1) <- A2(pk1,pk2,pk3)  with
+      Kg1(i) = {
+        guard (i <> i');
+        r <-$ Fq;
+        return (g_1^(c*d + r*(d*i + h)), g_1^r)
+      };
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    e' <-$ Fq;
+    b' <- A3(mb * e(pk1,pk2)^e', g_1^e', (pk2^i'*pk3)^e') with
+      Kg2(i) = {
+        guard (i<>i');
+        r <-$ Fq;
+        return (g_1^(c*d + r*(d*i + h)), g_1^r)
+      };
+  ] : b = b'.
+  bycrush 20.
+qed.
+extract "extraction/bb1_asym.ec".

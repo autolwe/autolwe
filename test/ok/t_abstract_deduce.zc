@@ -1,0 +1,23 @@
+bilinear_map e : G * G -> G_t.
+
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x <-$ Fq; y <-$ Fq;
+    b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    b <- A_ddh(g^x,g^y,g^z); ].
+
+adversary A : G -> Bool.
+
+bound_succ
+  [ a <-$ Fq;
+    b <-$ Fq;
+    c <-$ Fq;
+    beta <- A(g^(c*a*b + c*a + c*b + c));
+  ] : beta.
+  assumption_decisional! ddh -> t.
+  admit.
+qed.
+extract "extraction/t_abstract_deduce.ec".
+  

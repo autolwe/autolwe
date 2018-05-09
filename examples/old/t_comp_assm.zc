@@ -1,0 +1,93 @@
+adversary A1 : (G * G * G * G) -> (G * G).
+adversary A2 : (G * G * G * G) -> Bool.
+adversary A4 : () -> (G * G * G * G).
+
+oracle Dec1 : (G * G * G * G) -> G.
+oracle Dec2 : (G * G * G * G) -> G.
+
+operator H : ( G * G * G) -> Fq.
+
+assumption_decisional ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ z; ]
+    (x y z).
+
+assumption_computational tcr
+  [ a <-$ Fq; b <-$ Fq; c <-$ Fq;
+    let ga = g ^ a; let gb = g ^ b; let gc = g ^ c; ]
+  (x : (G * G * G) -> (H(x) = H(ga,gb,gc)) /\ not (x = (ga,gb,gc)) )
+  (a b c).
+
+prove
+[
+  b <-$ Bool;
+  u <-$ Fq;
+  w <-$ Fq;
+  v <-$ Fq \ w*u;
+  y2 <-$ Fq;
+  x1 <-$ Fq;
+  y1 <-$ Fq;
+  z1 <-$ Fq;
+  (m0,m1) <-
+       A1(g ^ x1,g ^ y1,g ^ z1,g ^ w) with
+       Dec1 (a,a',c,d) =
+         [ g ^ (log(c) + -(z1*log(a)))
+         |  (g ^ (w*log(a))) = a',
+           d = (g ^ (x1*log(a) + y1*log(a)*H(a,g ^ (w*log(a)),c))) ];
+  x2 <-$ Fq;
+  z2 <-$ Fq;
+  b' <- A2(g ^ u,g ^ v,g ^ z2,g ^ x2) with
+        Dec2 (a,a',c,d) =
+          [ g ^ (log(c) + -(z1*log(a)))
+          | (g ^ (w*log(a))) = a',
+            not ((a,g ^ (w*log(a)),c,d) = (g ^ u,g ^ v,g ^ z2,g ^ x2)),
+            d = (g ^ (x1*log(a) + y1*log(a)*H(a,g ^ (w*log(a)),c))) ];
+  (ea,ea',ec,ed) <- A4();
+  ] :
+  (ed = (g
+       ^ ((w*x2*log(ea)
+           + -(x2*log(ea'))
+           + x1*u*log(ea')
+           + w*w*y2*u*H(g ^ u,g ^ v,g ^ z2)*log(ea)
+           + -(w*w*y2*u*log(ea)*H(ea,ea',ec))
+           + -(w*y2*u*H(g ^ u,g ^ v,g ^ z2)*log(ea'))
+           + w*y2*u*log(ea')*H(ea,ea',ec)
+           + -(w*y2*v*H(g ^ u,g ^ v,g ^ z2)*log(ea))
+           + w*y2*v*log(ea)*H(ea,ea',ec)
+           + -(w*y1*u*H(g ^ u,g ^ v,g ^ z2)*log(ea))
+           + w*y1*u*log(ea)*H(ea,ea',ec)
+           + -(x1*v*log(ea))
+           + y2*v*H(g ^ u,g ^ v,g ^ z2)*log(ea')
+           + -(y2*v*log(ea')*H(ea,ea',ec))
+           + y1*u*H(g ^ u,g ^ v,g ^ z2)*log(ea')
+           + -(y1*v*log(ea)*H(ea,ea',ec)))
+          / (w*u + -v))))
+    /\ not ((g ^ (w*log(ea))) = ea')
+    /\ not ((ea,ea',ec,
+             g
+             ^ ((w*x2*log(ea)
+                 + -(x2*log(ea'))
+                 + x1*u*log(ea')
+                 + w*w*y2*u*H(g ^ u,g ^ v,g ^ z2)*log(ea)
+                 + -(w*w*y2*u*log(ea)*H(ea,ea',ec))
+                 + -(w*y2*u*H(g ^ u,g ^ v,g ^ z2)*log(ea'))
+                 + w*y2*u*log(ea')*H(ea,ea',ec)
+                 + -(w*y2*v*H(g ^ u,g ^ v,g ^ z2)*log(ea))
+                 + w*y2*v*log(ea)*H(ea,ea',ec)
+                 + -(w*y1*u*H(g ^ u,g ^ v,g ^ z2)*log(ea))
+                 + w*y1*u*log(ea)*H(ea,ea',ec)
+                 + -(x1*v*log(ea))
+                 + y2*v*H(g ^ u,g ^ v,g ^ z2)*log(ea')
+                 + -(y2*v*log(ea')*H(ea,ea',ec))
+                 + y1*u*H(g ^ u,g ^ v,g ^ z2)*log(ea')
+                 + -(y1*v*log(ea)*H(ea,ea',ec)))
+                / (w*u + -v)))
+            = (g ^ u,g ^ v,g ^ z2,g ^ x2))
+    /\ (H(ea,ea',ec) = H(g ^ u,g ^ v,g ^ z2))
+    /\ not ((ea,ea',ec) = (g ^ u,g ^ v,g ^ z2)).
+
+assumption_computational _ _.
+qed.
+extract "extraction/t_comp_assm.ec".

@@ -1,0 +1,254 @@
+
+operator Chi0 : BS_chi0 -> Matrix_{1,m}.
+operator Chi1 : BS_chi1 -> Matrix_{1,1}.
+
+adversary ALWE : (Matrix_{n,m+1} * Matrix_{1,m+1}) -> Bool.
+
+assumption LWE [
+  A <-$ Matrix_{n,m + 1};
+  s <-$ Matrix_{n,1};
+  chir0 <-$ BS_chi0;
+  chir1 <-$ BS_chi1;
+  b <- ALWE(A, tr s * A + (Chi0(chir0) || Chi1(chir1)));
+  ]
+  [
+    A <-$ Matrix_{n,m+1};
+    U <-$ Matrix_{1,m+1};
+    b <- ALWE(A, U);
+    ].
+  
+      
+
+operator Gadg: (()) -> Matrix_{n,m}. 
+operator TG : (()) -> Matrix_{m,m}.
+operator GadgConj : List_{d} Matrix_{1,1} -> List_{d} Matrix_{m,m}.
+
+operator Scale : (List_{d} Matrix_{1,1} * List_{d} Matrix_{n,m}) -> List_{d} Matrix_{n,m}.
+operator Scale2 : (Matrix_{1,1} * Matrix_{n,m}) -> Matrix_{n,m}.
+
+operator TrapGen : BS_tgr -> (Matrix_{n,m} * Matrix_{m,m}).
+operator SampleLeft : (BS_sl * Matrix_{n,m} * Matrix_{n,m} * Matrix_{m,m} * Matrix_{n,1}) ->  Matrix_{1,m+m}.
+operator SampleRight : (BS_sr * Matrix_{n,m} * Matrix_{m,m} * Matrix_{n,m} * Matrix_{m,m} * Matrix_{1,n}) -> Matrix_{1,m + m}.
+
+
+adversary A1 : (()) -> (List_{d} Matrix_{1,1} * List_{d} Matrix_{1,1}).
+adversary ASL1 : (()) -> (List_{d} Matrix_{1,1} * List_{d} Matrix_{1,1}).
+oracle KeyGen : List_{d} Matrix_{1,1} -> Matrix_{1,m+m}.
+oracle SL_SR_O : List_{d} Matrix_{1,1} -> Matrix_{1,m+m}.
+
+    
+  
+adversary AdvGLLHL_Choose : () -> Matrix_{1,m}.
+adversary AdvGLLHL : (List_{d} Matrix_{n,m} * Matrix_{1,m} * List_{d} Matrix_{1,m} * Matrix_{n,m} * Matrix_{m,m}) -> Bool.
+assumption GLLHL [
+  tgr <-$ BS_tgr;
+  Bs <-$ List_{d} Matrix_{n,m};
+  Rs <-$ List_{d} Matrix_{m,m};
+  w <- AdvGLLHL_Choose();
+  b <- AdvGLLHL (Bs, w, [w]_{d} * Rs, TrapGen(tgr)#0, TrapGen(tgr)#1);
+]
+[
+  tgr <-$ BS_tgr;
+  Rs <-$ List_{d} Matrix_{m,m};
+  w <- AdvGLLHL_Choose();
+  b <- AdvGLLHL ([TrapGen(tgr)#0]_{d} * Rs, w, [w]_{d} * Rs, TrapGen(tgr)#0, TrapGen(tgr)#1);
+  ].
+
+
+operator Sum : List_{d} Matrix_{n,m} -> Matrix_{n,m}.
+operator Sum1 : List_{d} Matrix_{m,m} -> Matrix_{m,m}.
+operator Sum2 : List_{d} Matrix_{1,1} -> Matrix_{1,1}.
+
+
+operator IP : (List_{d} Matrix_{1,1} * List_{d} Matrix_{1,1}) -> Matrix_{1,1}.
+
+
+operator Minj : Bool -> Matrix_{1,1}.
+
+
+adversary adv_SL_SR : (Matrix_{n,m} * (List_{d} Matrix_{1,1} * List_{d} Matrix_{1,1}) * List_{d} Matrix_{m,m} * Bool) -> Bool.
+
+adversary A2 : (Matrix_{n,m} *
+  List_{d} Matrix_{n,m} *
+  Matrix_{n,1} *
+  Matrix_{1,m} * List_{d} Matrix_{1,m} * Matrix_{1,1}) -> Bool.
+
+
+assumption dec_SL_SR [
+  tgr <-$ BS_tgr;
+  Rs <-$ List_{d} Matrix_{m,m};
+  u <-$ Matrix_{n,1};
+  bc <-$ Bool;
+  ws <- ASL1();
+  b <- adv_SL_SR (TrapGen(tgr)#0, ws, Rs, bc) with
+   SL_SR_O(v) = {
+      guard (IP(v,ws#0) <> 0_{1,1});
+      guard (IP(v,ws#1) <> 0_{1,1});
+      slr <-$ BS_sl;
+      return SampleLeft(slr,TrapGen(tgr)#0,
+                        Sum(-((Scale(bc?ws#0:ws#1,[Gadg(())]_{d})
+                               * GadgConj(v)))
+                            + ([TrapGen(tgr)#0]_{d} * Rs * GadgConj(v))),
+                        TrapGen(tgr)#1,u); };
+]
+[
+  A <-$ Matrix_{n,m};
+  Rs <-$ List_{d} Matrix_{m,m};
+  u <-$ Matrix_{n,1};
+  bc <-$ Bool;
+  ws <- ASL1();
+  b <- adv_SL_SR (A, ws, Rs, bc) with
+  SL_SR_O(v) = {
+    guard (IP(v, ws#0) <> 0_{1,1});
+    guard (IP(v, ws#1) <> 0_{1,1});
+    srr <-$ BS_sr;
+    return SampleRight(srr, A, Sum1(Rs * GadgConj(v)), Scale2(Sum2((bc?ws#0:ws#1) * v), Gadg(())), TG(()), tr u);
+    };
+].
+
+bound_adv [
+  (* commit ID *)
+  ws <- A1(());
+
+  (* setup *)
+  tgr <-$ BS_tgr;
+  let A = TrapGen(tgr)#0;
+  let TA = TrapGen(tgr)#1;
+    Bs <-$ List_{d} Matrix_{n,m};
+    u <-$ Matrix_{n,1};
+
+  (* encrypt bit *)
+  b <-$ Bool;
+  let w = b?ws#0:ws#1;
+    s <-$ Matrix_{n,1};
+    Rs <-$ List_{d} Matrix_{m,m};
+    chir0 <-$ BS_chi0;
+  let e0 = Chi0(chir0);
+  chir1 <-$ BS_chi1;
+  let e1 = Chi1(chir1);
+  let c1 = tr s * A + e0;
+  let c2 = ([tr s]_{d}) * (Bs + (Scale(w, [Gadg(())]_{d}))) + [e0]_{d} * Rs;
+  let c3 = tr s * u + e1 + Minj(b);
+
+  (* adv query *)
+  b' <- A2 (A, Bs, u, c1,c2,c3) with
+  KeyGen (v) = {
+    guard (IP(v,ws#0) <> 0_{1,1});
+    guard (IP(v,ws#1) <> 0_{1,1});
+    let Bv = Sum(Bs * GadgConj(v));
+    slr <-$ BS_sl;
+    return SampleLeft (slr, A, Bv, TA, u);
+    };
+  
+
+  ] : b = b'.
+  move 5 13.
+  rnd Bs (Bs -> Bs - Scale(w,[Gadg(())]_{d})) (Bs -> Bs + Scale(w,[Gadg(())]_{d})).
+  unfold u__.
+  //=.
+  norm.
+  move tgr 1.
+  move Bs 2.
+  move Rs 3.
+  move chir0 4.
+  abstract 4 tt0 ().
+  abstract 6 res0 (Chi0(chir0)).
+  abstract 7 tt1 (Bs, res0, [res0]_{d} * Rs, TrapGen(tgr)#0, TrapGen(tgr)#1).
+  abstract 14 res1 (b = b').
+  assumption_decisional GLLHL -> [tt0 res0] [tt1 res1] ; //.
+
+  move u 3.
+  move b 4.
+  move chir0 7.
+
+  abstract 5 tt0 ().
+  abstract 7 res0 ws.
+
+  abstract 12 res1 (b = b').
+  abstract 8 tt1 (TrapGen(tgr)#0, res0, Rs, b).
+
+  hybrid (12,1) {
+    let v0 = v;
+  guard (IP(v0,res0#0) <> 0_{1,1});
+  guard (IP(v0,res0#1) <> 0_{1,1});
+  slr <-$ BS_sl;
+  let r =  SampleLeft(slr,TrapGen(tgr)#0,
+                                  Sum(-((Scale(b?res0#0:res0#1,[Gadg(())]_{d})
+                                         * GadgConj(v0)))
+                                      + ([TrapGen(tgr)#0]_{d} * Rs * GadgConj(v0))),
+                                  TrapGen(tgr)#1,u); 
+  return r; }.
+    LR: norm.
+    dist_eq.
+
+  assumption_decisional * dec_SL_SR -> [
+    tgr,tgr; 
+    Rs, Rs;
+    ws, res0;
+    u,u;
+    bc,b;
+    b, res1;
+    SL_SR_O`slr, KeyGen`slr;
+    SL_SR_O`v, KeyGen`v0] 5 7 [] 8 13 [12 [(1 1 5 SL_SR_O)]].
+
+  norm.
+  move u 2.
+  mat_fold 1 2 Au.
+  move s 2.
+  move chir0 3.
+  move chir1 4.
+
+  assumption_decisional! LWE -> .
+  norm.
+  mat_unfold 1.
+  norm.
+
+  
+  rename B u.
+  move Rs 2.
+  move b 4.
+  move r__ 6.
+  abstract 5 tt0 ().
+  abstract 7 res0 ws.
+  abstract 10 res1 (b = b').
+  abstract 8 tt1 (A, res0, Rs, b).
+  hybrid (10,1) {
+    let v0 = v;
+    guard (IP(v0,res0#0) <> 0_{1,1});
+    guard (IP(v0,res0#1) <> 0_{1,1});
+      srr <-$ BS_sr;
+    let r = SampleRight(srr, A, Sum1(Rs * GadgConj(v0)), Scale2(Sum2((b?res0#0:res0#1) * v0), Gadg(())), TG(()), tr u);
+    return r;
+    }.
+    LR: norm. dist_eq.
+
+    assumption_decisional * dec_SL_SR <- [
+      A,A;
+      Rs,Rs;
+      u,u;
+      bc,b;
+      ws,res0;
+      SL_SR_O`srr, KeyGen`srr;
+      b, res1;
+      SL_SR_O`v, KeyGen`v0] 5 7 [] 8 11 [10 [(1 1 5 SL_SR_O)]].
+    norm.
+
+  mat_unfold 6.
+    norm.
+
+  move A 3.
+  abstract 3 tt0 ().
+  abstract 5 res0 (A).
+  abstract 6 tt1 ([TrapGen(tgr)#0]_{d} * Rs, res0, [res0]_{d} * Rs, TrapGen(tgr)#0, TrapGen(tgr)#1).
+  abstract 12 res1 (b = b').
+  assumption_decisional GLLHL <- [tt0 res0] [tt1 res1] vv.
+  norm.
+  move b 1.
+  move ws 2.
+  rnd vv (x -> x + Scale(b?ws#0:ws#1, [Gadg(())]_{d})) (x -> x - Scale(b?ws#0:ws#1, [Gadg(())]_{d})).
+  norm.
+  rnd B (B -> B - Minj(b)) (B -> B + Minj(b)).
+  norm.
+  indep!.
+qed.
+

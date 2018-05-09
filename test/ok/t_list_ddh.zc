@@ -1,0 +1,55 @@
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x <-$ Fq; y <-$ Fq;           b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq; b <- A_ddh(g^x,g^y,g^z);     ].
+
+adversary A_trivial : (Bool * Fq) -> Bool.
+
+assumption trivial
+  [ b <-$ Bool; u <-$ Fq; v <-$ Fq; res <- A_trivial(b,b?u:v); ]
+  [ b <-$ Bool; u <-$ Fq;           res <- A_trivial(b,u); ].
+
+oracle Samp : () -> (G * G *G).
+adversary A : G -> Bool.
+
+bound_adv
+  [ b <-$ Bool;
+    u <-$ G;
+    b' <- A(u) with
+      Samp() = {
+        x, y, z <-$ Fq;
+        return (g^x,g^y,g^(b?x*y:z))
+      };
+  ] : b = b'.
+  
+  hybrid (3,1) { x, y, z <-$ Fq; return (g^x,g^y,g^z) }.
+    last. indep!.
+  (* move sampling from "once-oracle" to main *)
+  move_main (3,1,1) mx.
+  move_main (4,1,1) my.
+  move_main (5,1,1) mz.
+  (* apply DDH assumption *)
+  move mz b.
+  move my mz.
+  move mx my; //=.
+  subst [1] (g^(b?(mx*my):mz) -> b?(g^(mx*my)):g^mz).
+  abstract 3 arg (g^mx, g^my, g^(mx*my)).
+  abstract _ res _.
+  assumption_decisional ddh -> [arg] zz.
+  (* apply trivial assumption *)
+  norm.
+  move mz mx.
+  move zz mz.
+  move b zz.
+  abstract 4 arg (b,b?zz:mz).
+  abstract _ res _.
+  assumption_decisional trivial -> [arg].
+  (* make the two games equal *)
+  norm.
+  move zz u. move_main 5 (6,1,1) z.
+  move my +1; move_main 4 (5,1,1) y.
+  move mx +1; move_main 3 (4,1,1) x.
+  dist_eq.
+qed.
+extract "extraction/t_list_ddh.ec".

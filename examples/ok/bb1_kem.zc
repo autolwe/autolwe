@@ -1,0 +1,63 @@
+bilinear_map e : G * G -> G_t.
+
+adversary A1 : () -> Fq.
+adversary A2 : (G * G * G * G_t * G * G) -> Bool.
+
+oracle Kg : Fq -> (G * G).
+
+(* DBDH assumption *)
+adversary A_dbdh : (G * G * G * G_t) -> Bool.
+
+assumption dbdh
+  [ c1 <-$ Fq; c2 <-$ Fq; c3 <-$ Fq;
+    b <- A_dbdh(g^c1, g^c2, g^c3, e(g,g)^(c1*c2*c3)); ]
+  [ c1 <-$ Fq; c2 <-$ Fq; c3 <-$ Fq; t <-$ Fq;
+    b <- A_dbdh(g^c1, g^c2,g^c3, e(g,g)^t); ].
+
+bound_adv
+  [ (* master secret key *)
+    c, d, h <-$ Fq;
+    let pk1 = g^c;
+    let pk2 = g^d;
+    let pk3 = g^h;
+    
+    i' <- A1();
+    
+    (* encapsulate challenge session key *)
+    b <-$ Bool;
+    e' <-$ Fq;
+    K1 <-$ G_t;
+    let Kb = b?e(pk1,pk2)^e':K1;
+    let C1 = g^e';
+    let C2 = (pk2^i'*pk3)^e';
+
+    b' <- A2(pk1,pk2,pk3,Kb,C1,C2)  with
+      Kg(i) = {
+        guard (i<>i');
+        r <-$ Fq;
+        return (g^(c*d + r*(d*i + h)), g^r)
+      };
+  ] : b = b'.                                          (* 0: initial game*)
+  //.                                                  (* 1. unfold definitions and simplify (we want to see polynomials *)
+  rnd_exp (K1 k1). //.                                 (* 2. sample exponent of K1 *)
+  norm_solve h.
+     (* We want to apply dbdh, but cannot since c*d required in Kg,
+        IDEA: r fresh random variable in every query, use 'rnd' to make Kg indep of c*g
+              exponent equal to: c*d + r*(h + i*d)
+              r -> r - (c/i) would result in r*h + r*i*d + h*c/i ==> we could perform the reduction, BUT i might be zero
+              ==> use h to change coefficient polynomial (before just i) of r*d to something that is guaranteed to be non-zero
+              i - i' is actually guaranteed to be nonzero => ...
+              *)
+
+  rnd! h _ (h -> h + d*i'); //.                        (* 3. redefine mpk such that coeff of r is (h  *)
+  rnd (8,1,2) _ (r -> r * (i - i') + c); //.
+  move c 1; move d 2; move e' 3.
+  assumption_decisional! dbdh -> tt; //.
+  
+  (* BEGIN: if tt <-$ Fq; K1 <-$ G_t; return (b?g^tt:K1) equivalent to K1 <-$ G_t; return K1 *)
+  rnd! k1 _ (k1 -> k1 - tt); //. rnd! tt _ _.
+  (* END: *)
+  bycrush.
+qed.
+print_proof.
+extract "extraction/bb1_kem.ec".

@@ -1,0 +1,84 @@
+adversary B : (G * G * G) -> Bool.
+
+assumption_decisional ddh
+  [ x <-$ Fq; y <-$ Fq;           b <- B(g ^ x,g ^ y,g ^ (x * y)); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq; b <- B(g ^ x,g ^ y,g ^ z);       ]
+  ([x,y]).
+
+operator H : (G * G * G) -> Fq.
+
+assumption_computational tcr
+  [ a <-$ Fq; b <-$ Fq; c <-$ Fq;
+    let ga = g ^ a; let gb = g ^ b; let gc = g ^ c; ]
+  (x : (G * G * G) -> (H(x) = H(ga,gb,gc)) /\ not (x = (ga,gb,gc)) )
+  (a b c).
+
+adversary A1 : (G * G * G * G) -> (G * G).
+adversary A2 : (G * G * G * G) -> Bool.
+oracle Dec1 : (G * G * G * G) -> G.
+oracle Dec2 : (G * G * G * G) -> G.
+
+prove
+  [ w  <-$ Fq;
+    x1 <-$ Fq;
+    x2 <-$ Fq;
+    y1 <-$ Fq;
+    y2 <-$ Fq;
+    z1 <-$ Fq;
+    z2 <-$ Fq;
+    (* secret key is x1,x2,y1,y2,z1,z2 *)
+    let p1 = g^(x1+w*x2);
+    let p2 = g^(y1+w*y2);
+    let p3 = g^(z1+w*z2);
+    let p4 = g^w;
+    
+    (m0,m1) <- A1(p1,p2,p3,p4) with
+      Dec1(a,a',c,d) =
+        [ c * (a^z1 * a' ^z2)^(-1)
+        | d = a^(x1+H(a,a',c)*y1) * a'^(x2+H(a,a',c)*y2) ];
+
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    (* randomness for encryption is u *)
+    u <-$ Fq;
+    (* we break the connection between sa' and the rest using DDH *)
+    (* sc and sa are required for decryption *)
+    let sa  = g^u;
+    let sa' = p4^u;
+    let sc  = mb * p3^u;
+    let sd  = p1^u * p2^(u*H(sa,sa',sc));
+
+    b' <- A2(sa,sa',sc,sd) with
+      Dec2(a,a',c,d) =
+        [ c * (a^z1 * a'^z2)^(-1)
+        | not ((a,a',c,d) = (sa,sa',sc,sd)),
+          d = a^(x1+H(a,a',c)*y1) * a'^(x2+H(a,a',c)*y2) ];
+
+  ] : b = b'.
+  rnorm.
+  rnorm_unknown u w.
+  rswap 10 -8.
+  rlet_abstract 3 arg (g^w, g^u, g^(w*u)).
+  rsubst 4 (g^w) (arg\0).
+  rsubst 4 (g^u) (arg\1).
+  rsubst 4 (g^(w*u)) (arg\2).
+  rlet_abstract 13 res (b=b').
+  assumption_decisional! ddh -> (3-13) v.
+  rnorm. rexcept 3 u*w.
+  crush 3. rnorm.
+
+  (* if a^w = a' for all queries, b not used in game anymore *)
+  radd_test (10,1,1) (a^w = a') A3 ga ga' gc gd. bycrush 1.
+  crush 2. rnorm.
+
+  radd_test (12,1,2) (a^w = a') A4 ea ea' ec ed. last. bycrush 1.
+  rsimp.
+
+  rcase_ev  H(ea,ea',ec) = H(g ^ u,g ^ v,g ^ z2). last. bycrush 1.
+  rnorm.
+  assumption_computational _ _.
+  bycrush.
+
+  qed.
+  print_proof.
+  extract "extraction/cramer_shoup.ec".

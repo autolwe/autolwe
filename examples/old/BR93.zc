@@ -1,0 +1,77 @@
+(* 
+   CPA-IND Security of the BR93 scheme in the Random
+   Oracle Model (ROM) under the assumption of a 
+   computationally secure trapdoor permutation.  
+*)
+
+
+         (* Trapdoor permutation *)
+permutation f : BS_k1.
+
+        (* Computational assumption *)
+adversary A_comp : (PKey_f * BS_k1) -> BS_k1.
+assumption OW_comp_assm succ
+  [ kp <-$ KeyPair_f; r <-$ BS_k1; 
+    r_A <- A_comp(get_pk(kp),f(get_pk(kp),r)); ] 
+    : r_A = r.
+    
+    
+  (* Hash function modelled as an ideal RO *)
+random_oracle H : BS_k1 -> BS_k2. 
+
+
+             (* CPA-IND Game *)
+adversary A_find : PKey_f -> (BS_k2 * BS_k2).
+adversary A_guess : (PKey_f * (BS_k1*BS_k2)) -> Bool.
+bound_adv
+  [ b <-$ Bool;
+    KPair <-$ KeyPair_f;
+    r <-$ BS_k1;
+    let PKey = get_pk(KPair);
+    let SKey = get_sk(KPair); (* Not used *)
+    (M0,M1) <- A_find(PKey);
+    let Mb = b?M1:M0;
+    let Cb = (f(PKey,r),H(r) ++ Mb); (* Cypher text *)
+    b'<- A_guess(PKey,Cb);
+    ] : b = b'.
+    
+    
+    
+                 (* Proof *)
+(* 
+   Idea: 
+   -1- exploit the randomness of ideal RO hash function H
+   that 'ensures' the secrecy of H(r) XOR Mb (OTP-like)
+   as long as its argument r remains secret ; 
+   -2- 'r' secrecy results immediately from the computational
+   assumption of the trapdoor permutation.
+*)   
+
+(* Splitting the game into -1- and -2- (sub)goals *)
+abstract 4 r' H(r).
+bad1 4 rr.
+    
+    (* OTP perfect secrecy for goal -1- *)    
+    norm. move r' +1.
+    rnd! r' (r' -> (b?M1:M0) ++ r') (r' -> (b?M1:M0) ++ r').
+    norm. move b 6.
+    indep.
+
+    (* Finding (hash argument) r would mean breaking the 
+       computational assumption of f -> goal -2- *)    
+    norm.
+    move KPair 1. move r 2.
+    ctxt_ev 1 (x -> f(get_pk(KPair),x)).
+    find (pk f_r -> (f(pk,rr) = f_r)) 
+         (get_pk(KPair), f(get_pk(KPair),r)) 
+         A_finder rr.
+    (*guess A_guesser rr.*)
+    abstract 3 A_comp_args 
+    (  get_pk(KPair) , f(get_pk(KPair),r)  ).
+    abstract 9 r_A rr.
+    ctxt_ev 1 (y -> f_inv(get_sk(KPair),y)).
+    assumption_computational OW_comp_assm [3 9].
+    
+qed.
+print_proof!.
+    

@@ -1,0 +1,37 @@
+adversary A1 : (G * G * G * G * G) -> Bool.
+
+assumption_decisional ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ z; ]
+    (x y z) ([x,y]).
+
+assumption_decisional ifrnd
+  [ x <-$ Fq; y <-$ Fq; b <-$ Bool; let u = (b?g^x:g^y); ]
+  [ x <-$ Fq; b <-$ Bool; let u = g^x; ]
+    (x y) ([x,y]).
+
+prove
+  [ a1 <-$ Fq;
+    a2 <-$ Fq;
+    r1 <-$ Fq;
+    r2 <-$ Fq;
+    u  <-$ Fq;
+    b  <-$ Bool;
+    b' <- A1(g^a1, g^a2, g^(a1*r1), g^(a2*r2), b?g^(r1+r2):g^u);
+  ] : b = b'.
+
+rswap 3 -1.
+rnorm_unknown a1 r1.
+rlet_abstract 3 ga1 g^a1.
+rlet_abstract 4 gr1 g^r1.
+rlet_abstract 5 gar g^(a1*r1).
+assumption_decisional! ddh -> c1. rnorm.
+crush 1. rnorm.
+rswap 7 -6. rswap 6 -4. rswap 7 -4. rlet_abstract 4 w (b?(g ^ r1):(g ^ u)).
+assumption_decisional! ifrnd ->.
+bycrush.
+qed.
+print_proof.
+extract "extraction/ddh_dlin.ec".

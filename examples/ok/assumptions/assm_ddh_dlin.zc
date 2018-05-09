@@ -1,0 +1,27 @@
+adversary A1 : (G * G * G * G * G) -> Bool.
+
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x, y    <-$ Fq; b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x, y, z <-$ Fq; b <- A_ddh(g^x,g^y,g^z); ].
+
+adversary A_ifrnd : (Fq * Bool) -> Bool.
+
+assumption ifrnd ([x,y])
+  [ x, y <-$ Fq; b <-$ Bool; b' <- A_ifrnd(b?x:y,b); ]
+  [ x    <-$ Fq; b <-$ Bool; b' <- A_ifrnd(x,b); ].
+
+bound_adv
+  [ a1 <-$ Fq;
+    a2 <-$ Fq;
+    r1 <-$ Fq;
+    r2 <-$ Fq;
+    u  <-$ Fq;
+    b  <-$ Bool;
+    b' <- A1(g^a1, g^a2, g^(a1*r1), g^(a2*r2), b?g^(r1+r2):g^u);
+  ] : b = b'.
+bycrush.
+qed.
+print_proof.
+extract "extraction/ddh_dlin.ec".

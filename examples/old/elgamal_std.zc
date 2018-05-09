@@ -1,0 +1,23 @@
+adversary A1 : G -> (G * G).
+adversary A2 : (G * G) -> Bool.
+
+assumption_decisional ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ z; ]
+    (x y z) ([x,y]).
+
+prove
+  [ a <-$ Fq;
+    x <-$ Fq;
+    let ga = g^a;
+    (m0,m1) <- A1(ga);
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    b' <- A2(mb * ga^x, g^x);
+  ] : b = b'.
+  bycrush 4.
+  qed.
+  print_proof.
+  extract "extraction/elgamal_std.ec".

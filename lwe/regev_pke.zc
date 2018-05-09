@@ -1,0 +1,58 @@
+
+operator Chi : BS_r -> Matrix_{m+1,1}.
+adversary A_lwe : (Matrix_{n,m+1} * Matrix_{m+1,1}) -> Bool.
+assumption LWE
+ [ A <-$ Matrix_{n,m+1}; s <-$ Matrix_{n,1}; r <-$ BS_r;  b <- A_lwe(A, (tr A) * s + Chi(r));]
+ [ A <-$ Matrix_{n,m+1}; u <-$ Matrix_{m+1,1}; b <- A_lwe(A, u);].
+
+operator bit_inj : BS_m -> Matrix_{m,1}.
+ adversary A_lhl : (Matrix_{n,m} * Matrix_{n,1}) -> Bool.
+ assumption LHL
+ [ A <-$ Matrix_{n,m}; e <-$ BS_m; b <- A_lhl(A, A * bit_inj(e));]
+ [ A <-$ Matrix_{n,m}; u <-$ Matrix_{n,1}; b <- A_lhl(A, u);].
+
+adversary A_pke : (Matrix_{n,m} * Matrix_{m,1} * Matrix_{n,1} * Matrix_{1,1}) -> Bool.
+
+operator Mu : () -> Matrix_{1,1}.
+
+bound_adv [
+  let mu = Mu(());
+    b <-$ Bool; let m = b?Mu(()):0_{1,1};
+    re <-$ BS_m;
+  let e = bit_inj(re);
+  
+   A <-$ Matrix_{n,m};
+  let u = A * e;
+    s <-$ Matrix_{n,1};
+  
+     r <-$ BS_r;
+   let X_ = tr Chi(r);
+   let X = tr (sl X_);
+   let x = tr (sr X_);
+
+   let c1 = (tr A) * s + X;
+   let c2 = (tr u) * s + x + m;
+     b' <- A_pke (A,c1,u,c2);
+ ] : b=b'.
+
+(* apply LHL *)
+move A 1.
+assumption_decisional! LHL -> u; //.
+
+(* fold A, u into Au *)
+mat_fold 1 2 Au; //.
+
+move s 2.
+assumption_decisional! LWE -> w; //.
+
+(* unfold LWE distribution *)
+rnd w (w -> tr w) (w -> tr w); //.
+mat_unfold 2 wa wb; //.
+rnd wb (B -> tr B) (B -> tr B); //.
+
+(* perform optimistic sampling *)
+move wb 4.
+rnd wb (B -> B - (b?Mu(()):0_{1,1})) (B -> B + (b?Mu(()):0_{1,1})); //.
+  indep!.
+
+qed.

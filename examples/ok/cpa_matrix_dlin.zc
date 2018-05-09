@@ -1,0 +1,30 @@
+(* CPA secure encryption from the linear assumption, we follow the matrix assumption paper *)
+
+adversary A_dlin : (G * G * G * G * G) -> Bool.
+
+assumption dlin ([a1,a2])
+  [ a1, a2, r1, r2 <-$ Fq;    b <- A_dlin(g^a1,g^a2,g^(a1*r1),g^(a2*r2),g^(r1+r2)); ]
+  [ a1, a2, r1, r2, t <-$ Fq; b <- A_dlin(g^a1,g^a2,g^(a1*r1),g^(a2*r2),g^t); ].
+
+adversary A1 : (G * G) -> (G * G).
+adversary A2 : (G * G * G) -> Bool.
+
+bound_adv
+  [ (* secret key a1, a2 *)
+    a1, a2 <-$ Fq;
+    let p1 = g^a1;
+    let p2 = g^a2;
+    (m0,m1) <- A1(p1,p2);
+    
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    
+    r1, r2 <-$ Fq;
+    (* we can consider k as the key of the KEM *)
+    let k = g^(r1+r2);
+    b' <- A2(p1^r1,p2^r2,mb*k);
+  ] : b = b'.
+  bycrush.
+qed.
+print_proof.
+extract "extraction/cpa_matrix_dlin.ec".

@@ -1,0 +1,29 @@
+(* CPA encryption from 2Casc, we follow the matrix assumption paper *)
+
+adversary A_twocasc : (G * G * G * G) -> Bool.
+
+assumption twocasc
+  [ a, r1, r2 <-$ Fq;    b <- A_twocasc(g^a,g^(a*r1),g^(r1 + a*r2),g^r2); ]
+  [ a, r1, r2, t <-$ Fq; b <- A_twocasc(g^a,g^(a*r1),g^(r1 + a*r2),g^t); ].
+
+adversary A1 : G -> G^2.
+adversary A2 : G^3 -> Bool.
+
+bound_adv
+  [ (* secret key a1,a2 *)
+    a <-$ Fq;
+    let p1 = g^a;
+    (m0,m1) <- A1(p1);
+    
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    
+    r1, r2 <-$ Fq;
+    (* we can consider k as the key of the KEM *)
+    let k = g^r2;
+    b' <- A2(p1^r1,g^r1*p1^r2,mb*k);
+  ] : b = b'.
+  bycrush.
+qed.
+print_proof.
+extract "extraction/cpa_matrix_scasc.ec".

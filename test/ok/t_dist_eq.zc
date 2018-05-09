@@ -1,0 +1,9 @@
+bound_dist
+  [ b <-$ Bool; ] : b = false
+  [ b <-$ Bool; ] : b = true.
+  rnd 1 (b -> not b) (b -> not b).
+  norm.
+  dist_sym. norm.
+  dist_eq.
+qed.
+extract "extraction/t_dist_eq.ec".

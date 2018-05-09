@@ -1,0 +1,24 @@
+opam-version: "1.2"
+name: "autognp"
+version: "0.1"
+maintainer: "Benedikt Schmidt <beschmi@gmail.com>"
+authors: [ "Benedikt Schmidt <beschmi@gmail.com>"
+           "Benjamin Gregoire <Benjamin.Gregoire@sophia.inria.fr>" ]
+homepage: ""
+bug-reports: ""
+license: ""
+dev-repo: "https://github.com/ZooCrypt/AutoGnP"
+build: [
+  [make]
+]
+install: [make "install"]
+remove: [make "uninstall"]
+depends: [
+  "ocamlfind"
+  "bolt"
+  "ctypes"
+  "ctypes-foreign"
+  "menhir"
+  "batteries"
+  "comparelib"
+]

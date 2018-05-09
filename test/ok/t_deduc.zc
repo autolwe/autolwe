@@ -1,0 +1,31 @@
+bilinear_map et : G_1 * G_2 -> G_t.
+
+bilinear_map ett : G * G -> G_tt.
+
+operator h : Fq -> Fq.
+
+bound_adv
+[ (* setup *)
+  a    <-$ Fq; 
+  b    <-$ Fq;
+  c    <-$ Fq;
+  d    <-$ Fq;
+  e    <-$ Fq;
+  f    <-$ Fq;
+
+  U    <-$ G;
+  V    <-$ G;
+  W    <-$ G;
+  X    <-$ G;
+  Y    <-$ G;
+  Z    <-$ G;
+] : true.
+
+
+deduce ppt [g_1^a, g_2^b,c,d,e] (g_t^(a*b*c + a*d * e)).
+deduce ppt [g_1^(a+c), g_2^b, c, d, e] (g_t^((a*b + a + b)*e + c*d)).
+deduce ppt [g^a, g^b] (g_tt^(a*b)).
+deduce ppt [a + h(b + c + d),b + c,d] (g^a).
+admit.
+qed.
+extract "extraction/t_deduc.ec".

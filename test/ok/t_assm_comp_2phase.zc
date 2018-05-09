@@ -1,0 +1,31 @@
+(* CMA1: 2-phase computational assumption *)
+operator MAC : (BS_m * BS_l) -> BS_t.
+
+adversary B1 : () -> BS_l.
+adversary B2 : BS_t -> (BS_l * BS_t).
+
+assumption cma1 succ
+  [ k     <-$ BS_m;
+    mc    <-  B1();
+    (m,t) <-  B2(MAC(k,mc));
+  ] : (m <> mc) /\ (MAC(k,m) = t).
+
+adversary A1 : G -> (BS_l * G).
+adversary A2 : BS_t -> (BS_l * BS_t).
+
+bound_succ
+  [ gx <-$ G;
+    k_ <-$ BS_m;
+    (mc_,gy) <- A1(gx);
+    (m_,t_) <-  A2(MAC(k_,mc_));
+  ] : (MAC(k_,m_) = t_) /\ (m_ <> mc_).
+  norm.
+  move 2 -1.
+  abstract 2 arg1 ().
+  abstract 5 res1 mc_.
+  abstract 6 arg2 MAC(k_,res1).
+  abstract 8 res2_1 m_.
+  abstract 9 res2_2 t_.
+  assumption_computational cma1 [2 5] [6 9].
+qed.
+extract "extraction/t_assm_comp_2phase.ec".

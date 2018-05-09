@@ -1,0 +1,33 @@
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x <-$ Fq; y <-$ Fq;
+    b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    b <- A_ddh(g^x,g^y,g^z); ].
+    
+adversary A1 : G -> (G * G).
+adversary A2 : (G * G) -> Bool.
+
+bound_adv
+  [ a <-$ Fq;
+    x <-$ Fq;
+    let ga = g^a;
+    (m0,m1) <- A1(ga);
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    b' <- A2(mb * ga^x, g^x);
+  ] : b = b'.
+case_ev (a = x).
+case_ev (x = a).
+admit.
+admit.
+admit.
+qed.
+extract "extraction/test_case_ev.ec".
+
+
+
+  
+  
+  

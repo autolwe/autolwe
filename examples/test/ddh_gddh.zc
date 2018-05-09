@@ -1,0 +1,37 @@
+(* add/remove a random *)
+
+adversary A_rnd : () -> Bool.
+
+assumption dec_rnd 
+  [ p <-$ Fq \ 0; b <- A_rnd(); ] 
+  [ b <- A_rnd(); ].
+
+(* DDH without generator *)
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x <-$ Fq; y <-$ Fq;
+    b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    b <- A_ddh(g^x,g^y,g^z); ].
+
+adversary A_gddh : (G * G * G * G) -> Bool.
+
+bound_dist 
+  [ p <-$ Fq \ 0; x <-$ Fq; y <-$ Fq;
+    b <- A_gddh(g^p, (g^p)^x,(g^p)^y,(g^p)^(x*y)); ] : b
+  [ p <-$ Fq \ 0;x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    b <- A_gddh(g^p, (g^p)^x,(g^p)^y,(g^p)^z); ] : b.
+  move [x y] -1.
+  abstract p arg (g^x,g^y,g^(x*y)). abstract _ res1 _.
+  subst ((g^p)^x -> (arg#0)^p). subst ((g^p)^y -> (arg#1)^p).
+  subst ((g^p)^(x*y) -> (arg#2)^p).
+  assumption_decisional ddh -> [arg] z.
+  move p x. norm. dist_sym. norm. dist_eq.
+qed.
+extract "extraction/ddh_gddh.ec".  
+
+
+
+
+  

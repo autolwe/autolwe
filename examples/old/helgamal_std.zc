@@ -1,0 +1,52 @@
+adversary A1 : G -> (BS_k * BS_k).
+adversary A2 : (G * BS_k) -> Bool.
+(* Not really a random oracle *)
+operator H : G -> BS_k.
+assumption ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ z; ]
+    x y z.
+assumption es
+  [x <-$ Fq; let h = H(g^x);]
+  [ h <-$ BS_k; ]
+  x.
+ 
+prove
+  [ sk <-$ Fq;
+    let pk = g ^ sk;
+    (m0,m1) <- A1(pk);
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    y <-$ Fq;
+    let he = H(pk ^ y);
+    let c  = (g ^ y, he ++ mb);
+    b' <- A2(c);
+  ] : b = b'.  
+
+rnorm.
+print_goals : norm1.
+rswap 4 -2.
+rlet_abstract 2 gsk (g^sk).
+rlet_abstract 3 gy (g^y).
+rlet_abstract 4 gsky (g^(sk*y)).
+print_goals : norm2.
+assumption -> ddh u.
+print_goals : norm3.
+rnorm.
+rswap 3 -2.
+rlet_abstract 1 h (H(g^u)).
+print_goals : norm4.
+assumption -> es. (* assumption <- seems to be buggy *)
+rswap 1 4.
+rrandom 5 (v -> v ++ (b?m0:m1)) (v -> v ++ (b?m0:m1)) z1.
+rnorm.
+print_goals : norm5.
+(* rindep seems to be byggy it should work automatically *)
+rswap 4 2.
+print_goals : norm6.
+rindep.
+
+extract "extraction/helgamal_std.ec".
+

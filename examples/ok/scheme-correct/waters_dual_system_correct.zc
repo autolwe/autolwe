@@ -1,0 +1,71 @@
+bilinear_map e : G * G -> G_t.
+
+adversary A1 : (G*G*G*G*G*G*G*G*G*G*G*G*G_t) -> (Fq * G_t * G_t).
+adversary A2 : (Fq*G_t*G*G*G*G*G*G*G*G*G) -> Bool.
+
+bound_succ
+[ (* setup *)
+  g1, v, v1, v2, w, u, h <-$ G;
+  a1    <-$ Fq;
+  a2    <-$ Fq;
+  b     <-$ Fq;
+  alpha <-$ Fq;
+  
+  let tau1 = v*v1^a1;
+  let tau2 = v*v2^a2;
+  let p0   = g1^b;
+  let p1   = g1^a1;
+  let p2   = g1^a2;
+  let p3   = g1^(b*a1);
+  let p4   = g1^(b*a2);
+  let p5   = e(g1,g1)^(alpha*a1*b);
+  (i,m0,m1) <- A1(p0,p1,p2,p3,p4,tau1,tau2,tau1^b,tau2^b,w,u,h,p5);
+  
+  beta <-$ Bool;  
+  let m = beta?m0:m1;
+  (* encryption of Enc(PK,i,m) *)
+  s1   <-$ Fq;
+  s2   <-$ Fq;
+  t    <-$ Fq;
+  tagc <-$ Fq;
+  let c0 = m*p5^s2;
+  let c1 = p0^(s1+s2);
+  let c2 = p3^s1;
+  let c3 = p1^s1;
+  let c4 = p4^s2;
+  let c5 = p2^s2;
+  let c6 = tau1^s1*tau2^s2;
+  let c7 = (tau1^b)^s1*(tau2^b)^s2*w^-t;
+  let e1 = (u^i*w^tagc*h)^t;
+  let e2 = g1^t;
+  
+  (* key for i *)
+  r1   <-$ Fq;
+  r2   <-$ Fq;
+  z1   <-$ Fq;
+  z2   <-$ Fq;
+  tagk <-$ Fq;
+  let r  = r1 + r2;
+  let d1 = g1^(alpha*a1)*v^r;
+  let d2 = g1^(-alpha)*v1^r*g1^z1;
+  let d3 = (g1^b)^-z1;
+  let d4 = v2^r*g1^z2;
+  let d5 = (g1^b)^-z2;
+  let d6 = g1^(r2*b);
+  let d7 = g1^r1;
+  let k  = (u^i*w^tagk*h)^r1;
+  beta' <- A2(tagc,c0,c1,c2,c3,c4,c5,c6,c7,e1,e2);
+  
+  let aa1 = e(c1,d1)*e(c2,d2)*e(c3,d3)*e(c4,d4)*e(c5,d5);
+  let aa2 = e(c6,d6)*e(c7,d7);
+  let aa3 = aa1 / aa2;
+  let aa4 = (e(e1,d7)/e(e2,k))^(1/(tagc - tagk));
+  
+] : (m <> c0 /(aa3/aa4)).
+unfold.
+case_ev (tagc = tagk).
+  indep!.
+norm.
+false_ev.
+qed.
+(* extract "extraction/waters_dual_system_correct.ec". *)

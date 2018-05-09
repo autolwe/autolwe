@@ -1,0 +1,20 @@
+operator KDF : G -> (BS_s * BS_m).
+
+assumption_decisional kdf
+  [ gx <-$ G; let k = KDF(gx); ]
+  [ a <-$ BS_s; b <-$ BS_m; let k = (a,b); ]
+  (gx a b).
+
+adversary A : (BS_s * BS_m) -> Bool.
+
+prove
+  [ gx <-$ G;
+    ks  <-$ BS_s;
+    km  <-$ BS_m;
+    b <-$ Bool;
+    b' <-  A(b?KDF(gx):(ks,km));
+  ] : b = b'.
+rnorm.
+assumption_decisional _ _. back.
+admit.
+qed.

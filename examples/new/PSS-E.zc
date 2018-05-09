@@ -1,0 +1,161 @@
+(* 
+   IND-CCA Security of the PPS-E scheme in the Random
+   Oracle Model (ROM) under the assumption of a 
+   computationally secure trapdoor permutation.  
+*)
+
+(* message length km, random length kr *)
+random oracle H1 : (BS_km * BS_kr) -> BS_kh.
+
+adversary A_H1_collision : () -> (BS_km * BS_kr) ^ 2.
+assumption H1_collision_resistance succ
+  [ (x1,x2) <- A_H1_collision(); ] 
+  : (x1 <> x2) /\ (H1(x1) = H1(x2)).
+
+random oracle H2 : BS_kh -> (BS_km * BS_kr).
+
+         (* Trapdoor permutation *)
+permutation f : (BS_kh * (BS_km * BS_kr)).
+
+        (* Computational assumption *)
+adversary A_comp :
+  (PKey_f *  (BS_kh * (BS_km * BS_kr))) ->  (BS_kh * (BS_km * BS_kr)).
+assumption OW_comp_assm succ
+  [ kp <-$ KeyPair_f; r <-$  (BS_kh * (BS_km * BS_kr)); 
+    r_A <- A_comp(get_pk(kp),f(get_pk(kp),r)); ] 
+    : r_A = r.
+adversary A_comp1 : 
+  (PKey_f *  (BS_kh * (BS_km * BS_kr))) -> BS_kh.
+assumption OW_comp_assm1 succ
+  [ kp <-$ KeyPair_f; r <-$  (BS_kh * (BS_km * BS_kr)); 
+    r_A_0 <- A_comp1(get_pk(kp),f(get_pk(kp),r)); ] 
+    : r_A_0 = (r#0).
+
+             (* IND-CCA Game *)
+adversary A_find  : PKey_f -> (BS_km * BS_km).
+adversary A_guess : (BS_kh * (BS_km * BS_kr)) -> Bool.
+
+oracle Dec : (BS_kh * (BS_km * BS_kr)) -> BS_km.
+
+bound_adv
+  [ b <-$ Bool;
+    kp <-$ KeyPair_f;
+    r <-$ BS_kr;
+    let pk = get_pk(kp);
+    let sk = get_sk(kp);
+    (m0,m1) <- A_find(pk);
+    let mb = b?m1:m0;
+    let cs = H1(mb,r);
+    let ch2 = H2(cs);
+    let mbr = (mb,r);
+    let ct = ch2 ++ mbr;
+    let cb = f(pk,(cs,ct));
+    b'<- A_guess(cb) with
+      Dec(c) = {
+        c <> cb;
+        let st = f_inv(sk,c);
+        let s = st#0;
+        let t = st#1;
+        let t1 = t#0;
+        let t2 = t#1;
+        let h2s = H2(s);
+        let x = (((h2s#0) ++ t1),((h2s#1) ++ t2));
+        s = H1(x);
+        return x#0;
+      };
+    ] : b = b'.
+    
+(* ====== Working with H1 args call ====== *)
+    (* Destroying the let bindings inside the oracle (required by 'guard' rule) 
+    and then refolding it for readability *)
+    norm. abstract 5 mb (b?m1:m0). abstract 6 cs H1(mb,r). abstract 7 ch2 H2(cs). abstract 8 ct (ch2 ++ (mb,r)). abstract 9 pk get_pk(kp). abstract 10 sk get_sk(kp)
+.   guard (11,1,3) ( ((f_inv(sk,c)#1) ++ H2((f_inv(sk,c)#0)) ) <> (mb,r) ). norm_nounfold
+.   ctxt_ev 1 (z -> (H1(z), z ++ H2(H1(z)))). norm.
+    
+    rewrite_ev 3 <-.
+    injective_ctxt_ev 2 (y -> f_inv(get_sk(kp),y)) (x -> f(get_pk(kp),x)). rewrite_ev 3 <-. remove_ev 3. norm
+.   rewrite_ev 1 <-. norm. false_ev.
+    swap (11,1,3) -1. norm_nounfold.
+    
+    guard (11,1,4) (exists h1 in L_H1 : (h1 = ((f_inv(sk,c)#1) ++ H2((f_inv(sk,c)#0)))) ). norm_nounfold
+.   
+
+    guess AA c.
+    abstract 13 h (((f_inv(sk,c))#1)#0 ++ (H2((f_inv(sk,c))#0))#0,
+              (H2((f_inv(sk,c))#0))#1 ++ ((f_inv(sk,c))#1)#1).
+    abstract _ h' H1(h#0,h#1). swap (11,1,3) 1.
+    help check_hash_args.
+    check_hash_args (11,1,3).
+    bad2 h' hh. print_goals. indep. 
+    
+    
+    last.
+    rewrite_ev 5. norm. false_ev. last.
+    
+    (* contradiction between exists and forall *) 
+    admit.
+    
+    
+    swap (11,1,4) -1. norm_nounfold. 
+
+(* ====== Working with H2 args call ====== *)    
+    (* Destroying the let bindings inside the oracle (required by 'guard' rule) 
+    and then refolding it for readability *)
+    norm. abstract 5 mb (b?m1:m0). abstract 6 cs H1(mb,r). abstract 7 ch2 H2(cs). abstract 8 ct (ch2 ++ (mb,r)). abstract 9 pk get_pk(kp). abstract 10 sk get_sk(kp)
+.   guard (11,1,5) ((f_inv(sk,c)#0) <> cs). norm_nounfold
+.       abstract (11,1,1) st f_inv(sk,c). abstract (11,1,2) s st#0. abstract (11,1,3) t st#1. abstract (11,1,4) ct' (t ++ H2(s))
+.       norm_nounfold.
+        unfold pk. unfold sk.
+        
+        (* Reworking ev 2 : 
+        ev 1 being just a rewriting, ev 2 must be transformed to become 'not ev 3';
+        as ev 3 uses H1 of f_inv, and there is f in ev 2, we start by 
+        "undoing f" in ev 2 :  *)
+        injective_ctxt_ev 2 (y -> f_inv(get_sk(kp),y)) (x -> f(get_pk(kp),x)). norm_nounfold 
+.        
+        (* ev 2 <=> (s,t) <> (s, ct) so let's get rid of s *)
+        injective_ctxt_ev 2 (x -> x#1) (y -> (f_inv(get_sk(kp),c)#0,y)).
+        (* We've got ct in ev2, there is H1(ct ++ ch2) in ev 3 : 
+        ev 2 -> ev2 ++ ch2 *)
+        injective_ctxt_ev 2 (x -> x ++ ch2) (y -> y ++ ch2). abstract 8 sk get_sk(kp). norm_nounfold
+.        (* 
+        ev 2 /\ ev 3 <=> ch2 ++ t <> (mb,r) /\ s = H1(t ++ ch2), we need to : 
+        -1- 'apply' H1 to ev 2 as H1(mb,r) = cs
+        -2- Use ev 1 <=> s = cs to ...
+        -3- ... attain false 
+        *)
+        (*-1- H1 not being 100% injective, we need to handle collisions too => case_ev*)
+        case_ev H1(ch2 ++ (f_inv(sk,c)#1)) <> H1(mb,r).
+          (* -a- No collision : H1(<>) -> <> *)
+          rewrite_ev 1. (*2*)
+          norm.
+          rewrite_ev 4 <-.
+          norm. (*3*)
+         false_ev.
+        
+          (* -b- Collision game : H1(<>) -> = *)
+          norm_nounfold. (* HERE *)
+          guess AA_guesser c. (* Inefficient, only needed for 
+          abstract let bindings required to make the game match the 
+          one computationally breaking H1 collision resistance *)
+          
+          abstract 12 x1 ((ch2#0) ++ ((f_inv(sk,c)#1)#0),(ch2#1) ++ ((f_inv(sk,c)#1)#1))
+.         abstract 13 x2 (mb,r).
+          norm_nounfold.
+          remove_ev 1 5.
+          abstract 1 input ( ).
+          remove_ev 2 3.
+         assumption_computational H1_collision_resistance [1 14]
+     
+     
+(* ======================================== 
+   Now only remains main game but with guard 
+   ======================================== *)
+.
+    help find.
+    guard (11,1,4) (forall sh2 in L_H2 : (sh2 <> (f_inv(sk,Dec`c)#0)) ). norm_nounfold.
+    admit.
+    help find.
+  
+  
+    

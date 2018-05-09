@@ -1,0 +1,51 @@
+(* artificial example for 2-phase decisional assumption *)
+operator KDF : (G * G *  G * G) -> (BS_s * BS_m).
+
+(* The second adversary is the distinguisher adversary,
+   we implictly assume that the considered event is his
+   return value. *)
+adversary B1 : G -> (G * G).
+adversary B2 : (BS_s * BS_m) -> Bool.
+
+assumption kdf
+  [ gx <-$ G;
+    gy <-$ G;
+    (gz1,gz2) <- B1(gy);
+    res <- B2(KDF(gx,gy,gz1,gz2));
+  ]
+  [ gy <-$ G;
+    a <-$ BS_s;
+    b <-$ BS_m;
+    (gz1,gz2) <- B1(gy);
+    res <- B2(a,b);
+  ].
+
+adversary C : (Bool * (BS_s * BS_m)) -> Bool.
+
+adversary A1 : G -> (G * G).
+adversary A2 : (BS_s * BS_m) -> Bool.
+
+bound_adv
+  [ gx_ <-$ G;
+    gy_ <-$ G;
+    ks_  <-$ BS_s;
+    km_  <-$ BS_m;
+    (gz1_,gz2_) <- A1(gy_);
+    b_ <-$ Bool;
+    b_' <-  A2(b_?KDF(gx_,gy_,gz1_,gz2_):(ks_,km_));
+  ] : b_ = b_'.
+norm.
+
+(* first abstract results *)
+abstract 6 res1_1 gz1_.
+abstract 7 res1_2 gz2_.
+abstract 10 res2_1 (b_=b_').
+abstract 3 arg1 gy_ : 7.
+abstract 10 non_pp log(g).
+abstract 9 arg2 KDF(gx_,gy_,res1_1,res1_2).
+(* gives ranges for both adversaries and names for new vars in right game *)
+assumption_decisional kdf -> [3 8] [9 13] aa bb.
+(*
+ERROR: is not ppt
+*)
+qed.

@@ -1,0 +1,32 @@
+(* CPA secure encryption from the DDH assumption,
+   we follow the matrix assumption paper *)
+
+adversary A_ddh : (G * G * G) -> Bool.
+
+assumption ddh ([x,y])
+  [ x,y    <-$ Fq; b <- A_ddh(g^x,g^y,g^(x*y)); ]
+  [ x,y, z <-$ Fq; b <- A_ddh(g^x,g^y,g^z);     ].
+
+random_oracle H : G -> BS_l.
+
+adversary A1 : (G) -> (G * G).
+adversary A2 : (G * G) -> Bool.
+
+bound_adv
+  [ (* secret key a1, a2 *)
+    a <-$ Fq;
+    let PK = g^a;
+    (m0,m1) <- A1(PK);
+    
+    b <-$ Bool;
+    let mb = (b?m0:m1);
+    
+    x <-$ Fq;
+    let k = g^(a*x);
+    b' <- A2(g^x,mb*k);
+  ] : b = b'.
+  unfold. move 4 2.
+  bycrush.
+qed.
+print_proof.
+extract "extraction/cpa_matrix_ddh.ec".

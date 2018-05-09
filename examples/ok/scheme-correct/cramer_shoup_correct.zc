@@ -1,0 +1,24 @@
+adversary A1 : () -> G.
+operator H : (G * G * G) -> Fq.
+
+bound_succ
+  [ w, x1, x2, y1, y2, z1, z2 <-$ Fq;
+    (* public keys *)
+    let p1 = g^(x1+w*x2);
+    let p2 = g^(y1+w*y2);
+    let p3 = g^(z1+w*z2);
+    let p4 = g^w;
+    (m) <- A1();
+    (* ciphertext *)
+    u <-$ Fq;
+    let a = g^u;
+    let a' = p4^u;
+    let c = m * p3^u;
+    let d = p1^u * p2^(u*H(a,a',c));
+    (* decryption *)
+    let m' = c * (a^z1 * a'^z2)^(-1);
+    let d' = a^(x1+H(a,a',c)*y1) * a'^(x2+H(a,a',c)*y2);
+  ] : not ((d = d') /\ (m = m')).
+  bysimp.
+qed.
+extract "extraction/cramer_shoup_correct.ec".

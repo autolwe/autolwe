@@ -1,0 +1,45 @@
+adversary A_ddh1 : () -> Bool.
+oracle O : (G) -> (G * G * G).
+
+assumption ddh
+  [ x,y    <-$ Fq; 
+    b <- A_ddh1() with
+     O(g1) = { return(g1^x,g1^y,g1^(x*y)) }; 
+  ] 
+
+  [ x,y,z <-$ Fq; 
+    b <- A_ddh1() with
+     O(g1) = { return(g1^x,g1^y,g1^z) };
+  ].
+
+adversary A_ddh : (G * G * G) -> Bool.
+
+
+bound_dist 
+  [ x,y    <-$ Fq; 
+    let foo = ();                     (* argument of the adversary *)
+    w <-$ Fq;
+    let g1 = g^w;                     (* argument of the oracle *)
+    let r  = (g1^x,g1^y,g1^(x*y));    (* result of the oracle   *)
+    b' <- A_ddh(r);                   
+    let b = b';                       (* result of the adversary *) 
+  ] : b
+
+  [ x,y,z <-$ Fq;
+    w <-$ Fq;
+    let g1 = g^w;
+    let r  = (g1^x,g1^y,g1^z);
+    b <- A_ddh(r); 
+  ] : b.
+
+print_goals : main1.
+
+assumption_decisional * ddh -> [x,x; y,y; z,z; b,b; O`g1,g1] 
+   3 8 [5 6 O]. 
+
+print_goals : main2.
+
+dist_eq.
+     
+print_goals : main3.
+           

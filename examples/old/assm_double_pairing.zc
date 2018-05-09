@@ -1,0 +1,39 @@
+adversary A1 : (G_1 * G_1) -> (G_2 * G_2).
+bilinear map e : G_1 * G_2 -> G_t.
+
+
+assumption_decisional ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g_1 ^ x; let gy = g_1 ^ y; let gxy = g_1 ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g_1 ^ x; let gy = g_1 ^ y; let gxy = g_1 ^ z; ]
+    (x y z) ([x,y]).
+
+prove
+  [ a <-$ Fq;
+    c <-$ Fq;
+    let ga = g_1^a;
+    let gc = g_1^c;
+    (gu,gv) <- A1(ga, gc);
+  ] : (e(ga,gu) * e(gc,gv) = g_t^0) /\ not (gv = g_2^0).
+rexcept 1 0.
+rrnd 2 (c -> c * a) (c -> c / a).
+rnorm.
+rctxt_ev (x -> log(x)). rnorm.
+rctxt_ev (x -> x / a) 2.
+rnorm.
+rctxt_ev (x -> g_t^x) 2.
+rnorm.
+rexcept 1.
+rconv [
+  a <-$ Fq;
+  c <-$ Fq;
+  (gu,gv) <- A1(g_1 ^ a, g_1 ^ (a*c));
+] : not (gv = (g_2 ^ 0)) /\ (e(g_1,gu)*e(g_1^c,gv) = (g_t ^ 0)). (* FIXME: rnorm_unknown broken *)
+rlet_abstract 3 ga g_1^a.
+rlet_abstract 4 gc g_1^c.
+rlet_abstract 5 gac g_1^(a*c).
+assumption_decisional! ddh -> d.
+bycrush.
+qed.
+print_proof!.

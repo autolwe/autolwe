@@ -1,0 +1,137 @@
+(* Kurosawa-Desmedt KEM revisited *)
+assumption_decisional ddh
+  [ x <-$ Fq; y <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ (x * y); ]
+  [ x <-$ Fq; y <-$ Fq; z <-$ Fq;
+    let gx = g ^ x; let gy = g ^ y; let gxy = g ^ z; ]
+    (x y z) ([x,y]).
+
+(* This should be an axiom in ZooCrypt *)
+assumption_decisional ifrnd
+  [ x <-$ Fq; y <-$ Fq; b <-$ Bool; let u = (b?x:y); ]
+  [ x <-$ Fq; b <-$ Bool; let u = x; ]
+    (x y) ([x,y]).
+
+(* TCR hash funcion, the first component is the index of the
+   hash function in the family (i.e., sample a random H in HH) *)
+operator TCR : (BS_h * G * G) -> Fq.
+
+assumption_computational tcr
+  [ i <-$ BS_h; a <-$ Fq; let ga = g ^ a; ]
+  ( xy : (G * G)-> (TCR(i,ga,xy\0) = TCR(i,ga,xy\1)) /\ not ((xy\0) = (xy\1)) )
+  a.
+  
+(* We use BS_k as the type of keys (abstract type would clarify this). *)
+operator KDF : G  -> (BS_k1 * BS_k2).
+
+assumption_decisional kdf
+  [ x <-$ Fq; let k = KDF(g^x); ]
+  [ a <-$ BS_k1; b <-$ BS_k2; let k = (a,b); ]
+  (x a b).
+
+(* We use Bs_k for the key and BS_t for tags. *)
+operator MAC : (BS_k1 * G * G) -> BS_t.
+
+(* FIXME: We cannot define CMA1 since it is interactive. *)
+
+adversary A1 : (G * G * G * G * BS_h) -> ().
+adversary A2 : (G * G * BS_t * BS_k2) -> Bool.
+
+oracle Dec1 : (G * G * BS_t) -> Fq.
+oracle Dec2 : (G * G * BS_t) -> Fq.
+
+prove
+  [ 
+    (* public parameters are g1 and g2, for now we fix g1 and also
+       use the corresponding DDH assumption *)
+    i <-$ BS_h;
+    
+    e2 <-$ Fq;
+    let g2 = g^e2;
+
+    (* secret key is x1,x2,y1,y2 *)
+    x1 <-$ Fq;
+    x2 <-$ Fq;
+    y1 <-$ Fq;
+    y2 <-$ Fq;
+    let c = g^x1*g2^x2;
+    let d = g^y1*g2^y2;
+    () <- A1(g,g2,c,d,i); (* with
+      
+      Dec1(u1,u2,t) =
+        [ k2
+        | let alpha = TCR(i,u1,u2),
+          let v = u1^(x1 + y1*alpha)*u2^(x2 + y2*alpha),
+          let k = KDF(v),
+          let k1 = k \ 0,
+          let k2 = k \ 1,
+          MAC(k1,u1,u2) = t ]; *)
+    
+    b <-$ Bool;
+
+    (* encapsulation with randomness r *)
+    r <-$ Fq;
+    let cu1 = g^r;
+    let cu2 = g2^r;
+    let ca = TCR(i,cu1,cu2);
+    let cv = c^r*d^(r*ca);
+    let ck = KDF(cv);
+    let ck1 = ck\0;
+    let ct = MAC(ck\0,cu1,cu2);
+
+    (* the adversary also gets a real-or-random key *)
+    let cK0 = ck\1;
+    cK1 <-$ BS_k2;
+    let cK = b?cK0:cK1; 
+
+    b' <- A2(cu1,cu2,ct,cK); (* with
+      Dec2(u1,u2,t) =
+        [ k2
+        | not ((u1,u2,t) = (cu1,cu2,ct)),
+          let alpha = TCR(i,u1,u2),
+          let v = u1^(x1 + y1*alpha)*u2^(x2 +y2*alpha),
+          let k = KDF(v),
+          let k1 = k \ 0,
+          let k2 = k \ 1,
+          MAC(k1,u1,u2) = t ]; *)
+  
+  ] : b = b'. rnorm.
+assumption_decisional ddh -> v. back. back. back. back. back. back.
+rlet_unfold 3. rlet_unfold 7. rlet_unfold 7. rnorm_nounfold.
+(* We want to apply the DDH assumption. This must include r since it is
+   the randomness of the encapsulation. So there are the following choices:
+   {r,x1}, {r,x2}, {r,y1}, {r,y2}, {r,e2}. We choose r and e2 since both are
+   not used in the oracle. *)
+assumption_decisional! ddh -> z. rnorm.
+rnorm_unknown r e2.
+rswap 2 -1. rswap 9 -7.
+rlet_abstract 3 gx g^e2. rlet_abstract 4 gy g^r. rlet_abstract 5 gxy g^(e2*r).
+assumption_decisional! ddh -> z. rnorm.
+crush 1. rnorm. crush 1. rnorm. rswap 3 8.
+rswap 3 8. rnorm.
+rrnd 11 _ _.
+rrnd 3 _ (z -> e2*x2*r + y1*r*TCR(i,g ^ r,g ^ (e2*r)) + z). rnorm.
+rswap 11 -10. rlet_abstract 2 gz KDF(g^z).
+assumption_decisional! kdf -> k1 k2. rnorm.
+rswap 2 -1. rswap 3 -1. rswap 12 -9. rlet_abstract 4 w (b?k2:cK1).
+assumption_decisional! ifrnd ->.
+bycrush.
+
+
+back. back. back. back. back. back.
+rrnd 3 _ (cK1 -> cK1 - k2). rnorm. rswap 12 -11.
+rrnd 3 _ (k2 -> k2 - cK1). rnorm.
+(* consider view of adversary immediately after A1 is called, e1 and e2 are fixed, we
+   can make the other two expressions independent of either {x2,y2}, {x1,y2}, {x2,y1}.
+   We choose 22 and y2.*)
+rexcept 2 0.
+rswap 5 -1. rrnd! 5 _ (x1 -> e1*x1 + e2*x2). rnorm.
+rswap 7 -1. rrnd! 7 _ (y1 -> e1*y1 + e2*y2). rnorm.
+crush 1.
+(* Step1: First we assume that g2 is sampled as g1^w => w' = w*e1 *)
+rexcept 2 0. rrnd 3 (w -> w*e1) (w -> w/e1). rnorm.
+  (* FIXME: allow placeholder at first position, allow for noswap option *)
+assumption_decisional ddh -> z. back. back.
+  (* DDH applicable for x2,r and w,r and w x2 *)
+back. back. rnorm.
+rrnd 

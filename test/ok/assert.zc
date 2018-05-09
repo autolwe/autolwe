@@ -1,0 +1,28 @@
+adversary A1 : () -> (Fq * Fq).
+adversary A2 : Fq -> Bool.
+
+bound_adv [
+  z1 <-$ Fq;
+  b <-$ Bool;
+  (m1,m2) <- A1();
+  let m = b ? m1 : m2;
+  b' <- A2(z1 * m);
+] : ( (m1 <> 0) /\ (m2 <> 0) /\ (b = b')).
+assert 4 ((b?m1:m2) <> 0).
+ admit.
+norm. 
+rnd! z1 _ _. (* FIXME does not work without norm *)
+(* FIXME should not work: game is not well formed *)
+(*assert 3.
+ admit.
+bycrush. 
+*)
+norm.
+assert 3.
+  admit.
+bycrush.
+qed.
+extract "extraction/assert.ec".
+
+
+  

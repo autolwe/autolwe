@@ -1,0 +1,11 @@
+adversary A : () -> Fq.
+
+bound_succ
+  [ x <-  A();
+    u <-$ Fq \ 0;
+  ] : 1 / u*x = 0.
+  norm.
+(*
+ERROR: Failed divzero check: u*x
+*)
+qed.
