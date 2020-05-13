@@ -94,11 +94,11 @@ let prove_by ru g =
       }
   with
   | Invalid_rule s ->
-    Bad (lazy s)
+    Error (lazy s)
   | Wf.Wf_div_zero es ->
-    Bad (lazy (fsprintf "Failed divzero check: %a" (pp_list "," pp_expr) es))
+    Error (lazy (fsprintf "Failed divzero check: %a" (pp_list "," pp_expr) es))
   | Wf.Wf_var_undef(vs,e,def_vars) ->
-    Bad (lazy (fsprintf "Variable undefined: %a in %a not in %a"
+    Error (lazy (fsprintf "Variable undefined: %a in %a not in %a"
                  VarSym.pp vs pp_expr e (pp_list "," VarSym.pp) (VarSym.S.elements def_vars)))
 
 (** Given a list of proof states and a validation, create a new proof state

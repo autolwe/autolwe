@@ -153,7 +153,7 @@ let core_tactic ct g =
   let open BatResult in
   match ct g with
   | Ok ps -> ret ps
-  | Bad s -> mfail s
+  | Error s -> mfail s
 
 let t_conv do_norm new_se = core_tactic (ct_conv do_norm new_se)
 
